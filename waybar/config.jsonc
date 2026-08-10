@@ -108,7 +108,7 @@
       "interval": 300,
       "signal": 13,
       "tooltip": true,
-      "on-click": "xdg-open https://claude.ai/settings/usage"
+      "on-click": "/usr/bin/google-chrome-stable %U --profile-directory=\"Profile 1\" https://claude.ai/settings/usage"
   },
   "cpu": {
     "interval": 5,
