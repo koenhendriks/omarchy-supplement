@@ -1,0 +1,4 @@
+.env
+vpn/*.nmconnection
+vpn/certs/
+vpn/*.auth

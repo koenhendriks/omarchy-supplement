@@ -1,0 +1,55 @@
+# strongSwan translation of Sandwave.nmconnection (IKEv2/IPsec, not OpenVPN).
+# Rendered by install-vpn.sh into /etc/swanctl/conf.d/ with the values from
+# .env substituted in. Do not put real credentials in this file.
+
+connections {
+    Sandwave {
+        # NetworkManager: address=vpn.sandwave.io
+        remote_addrs = vpn.sandwave.io
+        version = 2
+
+        # virtual=yes: request a virtual IP from the gateway
+        vips = 0.0.0.0
+
+        # encap=no: do not force UDP encapsulation
+        encap = no
+
+        # proposal=no: leave the default proposals in place rather than pinning
+        # a specific cipher suite
+
+        local-eap {
+            # method=eap
+            auth = eap
+            eap_id = ${VPN_SANDWAVE_USERNAME}
+        }
+
+        remote-ike {
+            # The NM profile pins no CA, so the gateway certificate is verified
+            # against the system trust store
+            auth = pubkey
+            id = vpn.sandwave.io
+        }
+
+        children {
+            Sandwave {
+                # ipcomp=no
+                ipcomp = no
+                # Connect on demand, not at boot
+                start_action = none
+
+                # ipv4 never-default=true has no direct strongSwan equivalent:
+                # routes follow the negotiated traffic selectors. If the gateway
+                # offers 0.0.0.0/0 and you only want split tunnelling, narrow
+                # this to the subnets you actually need.
+                remote_ts = 0.0.0.0/0
+            }
+        }
+    }
+}
+
+secrets {
+    eap-Sandwave {
+        id = ${VPN_SANDWAVE_USERNAME}
+        secret = "${VPN_SANDWAVE_PASSWORD}"
+    }
+}
