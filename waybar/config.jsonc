@@ -203,8 +203,8 @@
     "exec": "~/.config/waybar/scripts/vpn-status.sh 'MassMarket'",
     "return-type": "json",
     "interval": 5,
-    "on-click": "nmcli con up 'MassMarket'",
-    "on-click-right": "nmcli con down 'MassMarket'"
+    "on-click": "openvpn3 session-start --config MassMarket",
+    "on-click-right": "openvpn3 session-manage --config MassMarket --disconnect"
   },
   "custom/vpn-sand": {
       "format": "{} SW",
