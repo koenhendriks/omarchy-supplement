@@ -9,6 +9,8 @@
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
 . ./install-glab.sh
+. ./install-whatsapp.sh
+. ./install-telegram.sh
 . ./install-teams.sh
 . ./install-outlook.sh
 . ./install-yaak.sh
@@ -21,4 +23,3 @@
 . ./install-claude-waybar.sh
 . ./install-waybar-config.sh
 . ./install-mako-config.sh
-b
