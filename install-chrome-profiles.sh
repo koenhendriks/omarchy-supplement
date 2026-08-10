@@ -35,7 +35,7 @@ for entry in "${PROFILES[@]}"; do
     # hardcoded, so an upstream change to the binary or its flags carries over.
     awk -v name="$name" -v profile="$profile" '
         /^\[/ { section = $0 }
-        section == "[Desktop Entry]" && /^Name=/ { print "Name=" name; next }
+        section == "[Desktop Entry]" && /^Name=/ { print "Name=Google Chrome " name; next }
         /^Exec=/ { print $0 " --profile-directory=\"" profile "\""; next }
         { print }
     ' "$SYSTEM_DESKTOP" > "$target"
