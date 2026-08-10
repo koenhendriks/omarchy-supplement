@@ -5,6 +5,7 @@
 . ./remove-default-browsers.sh
 . ./remove-webapps.sh
 . ./install-bind.sh
+. ./install-bitwarden.sh
 . ./install-phpstorm.sh
 . ./install-glab.sh
 . ./install-teams.sh
