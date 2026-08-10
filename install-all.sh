@@ -5,6 +5,7 @@
 . ./remove-default-browsers.sh
 . ./remove-webapps.sh
 . ./remove-preinstalled.sh
+. ./install-screensaver.sh
 . ./install-bind.sh
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
