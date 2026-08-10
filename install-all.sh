@@ -17,6 +17,7 @@
 . ./install-telegram.sh
 . ./install-teams.sh
 . ./install-outlook.sh
+. ./install-slack.sh
 . ./install-yaak.sh
 . ./install-chrome-profiles.sh
 . ./install-le-ca.sh
