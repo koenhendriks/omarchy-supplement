@@ -9,6 +9,8 @@
 . ./install-bind.sh
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
+. ./install-dev-laravel.sh
+. ./install-yarn.sh
 . ./install-glab.sh
 . ./install-whatsapp.sh
 . ./install-telegram.sh
