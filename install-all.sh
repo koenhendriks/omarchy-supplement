@@ -11,6 +11,7 @@
 . ./install-phpstorm.sh
 . ./install-dev-laravel.sh
 . ./install-yarn.sh
+. ./install-nextcloud.sh
 . ./install-glab.sh
 . ./install-whatsapp.sh
 . ./install-telegram.sh
