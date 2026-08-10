@@ -4,6 +4,7 @@
 . ./install-browser.sh
 . ./remove-default-browsers.sh
 . ./remove-webapps.sh
+. ./remove-preinstalled.sh
 . ./install-bind.sh
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
@@ -19,3 +20,4 @@
 . ./install-claude-waybar.sh
 . ./install-waybar-config.sh
 . ./install-mako-config.sh
+b
