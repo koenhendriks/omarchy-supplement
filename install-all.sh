@@ -4,6 +4,7 @@
 . ./install-browser.sh
 . ./remove-default-browsers.sh
 . ./remove-webapps.sh
+. ./install-bind.sh
 . ./install-glab.sh
 . ./install-teams.sh
 . ./install-outlook.sh
