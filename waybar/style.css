@@ -1,0 +1,14 @@
+#custom-vpn-sand {
+  margin-right: 4px;
+  padding-left: 4px;
+}
+
+#custom-vpn-sand, #custom-vpn-mass {
+  background-color: @background;
+  padding-right: 7px;
+  padding-left: 4px;
+}
+
+#custom-vpn-mass.connected, #custom-vpn-sand.connected {
+    color: #94c2f2;
+}
