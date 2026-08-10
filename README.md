@@ -32,8 +32,10 @@ and has to be restored out of band first. See [Secrets](#secrets).
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-hyprland-overrides.sh` | Adds `source =` lines for `hypr/*.conf` |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
+| `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
 | `hypr/` | Hyprland override fragments (bindings, monitors, windows, input) |
 | `waybar/` | Full waybar config, VPN status script, style fragment |
+| `mako/` | Notification overrides layered on top of the current theme |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
 ## Config overrides
@@ -46,6 +48,14 @@ are never edited.
 `config.jsonc` is symlinked over the existing one (the original is kept as
 `config.jsonc.bak`). Because it is a symlink, edits in this repo are live,
 just restart waybar and they apply.
+
+**Mako** notifications are centered along the top edge (`anchor=top-center`).
+Omarchy points `~/.config/mako/config` at the *current theme's* `mako.ini`, which
+`omarchy theme set` deletes and regenerates from a template — so editing that
+file loses the change on the next theme switch. `mako/config` here `include`s it
+and overrides afterwards, keeping the theme's colours while the anchor sticks.
+Only Omarchy's install-time `theme.sh` recreates that symlink, so this survives
+theme changes.
 
 `style.css` is the exception: it has to keep Omarchy's rules and the theme
 `@import` that defines `@background`, so the fragment is merged in as a marked

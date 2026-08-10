@@ -1,0 +1,13 @@
+# Mako overrides, installed over ~/.config/mako/config by install-mako-config.sh.
+#
+# Omarchy points that path at the current theme's mako.ini, which is rebuilt from
+# scratch on every `omarchy theme set` -- editing the theme file directly loses
+# the change on the next theme switch. Including it from here instead keeps the
+# theme's colours while letting the settings below win, because mako applies
+# later directives over earlier ones and an include does not change the scope of
+# the file doing the including.
+include=~/.config/omarchy/current/theme/mako.ini
+
+# Centered along the top edge rather than the top-right default in
+# ~/.local/share/omarchy/default/mako/core.ini
+anchor=top-center
