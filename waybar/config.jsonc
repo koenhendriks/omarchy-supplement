@@ -8,6 +8,7 @@
   "modules-left": ["custom/omarchy", "hyprland/workspaces", "mpris"],
   "modules-center": ["hyprland/window", "custom/weather", "custom/update", "custom/voxtype", "custom/screenrecording-indicator", "custom/idle-indicator", "custom/notification-silencing-indicator"],
   "modules-right": [
+    "custom/claudebar",
     "custom/vpn-mass",
     "custom/vpn-sand",
     "tray",
@@ -101,7 +102,14 @@
     "signal": 7,
     "interval": 21600
   },
-
+  "custom/claudebar": {
+      "exec": "claudebar",
+      "return-type": "json",
+      "interval": 300,
+      "signal": 13,
+      "tooltip": true,
+      "on-click": "xdg-open https://claude.ai/settings/usage"
+  },
   "cpu": {
     "interval": 5,
     "format": "󰍛",

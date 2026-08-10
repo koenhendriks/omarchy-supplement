@@ -1,6 +1,7 @@
 #custom-vpn-sand {
-  margin-right: 4px;
+  margin-right: 7px;
   padding-left: 4px;
+  border-right: 1px solid rgba(195, 195, 195, 0.5);
 }
 
 #custom-vpn-sand, #custom-vpn-mass {
@@ -11,4 +12,13 @@
 
 #custom-vpn-mass.connected, #custom-vpn-sand.connected {
     color: #94c2f2;
+}
+
+#custom-claudebar {
+    padding: 0 15px;
+    margin-right: 4px;
+    color: #ffffff;
+    background-color: @background;
+    border-left: 1px solid rgba(195, 195, 195, 0.5);
+    border-right: 1px solid rgba(195, 195, 195, 0.5);
 }
