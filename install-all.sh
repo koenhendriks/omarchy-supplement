@@ -12,6 +12,7 @@
 . ./install-teams.sh
 . ./install-outlook.sh
 . ./install-yaak.sh
+. ./install-chrome-profiles.sh
 . ./install-le-ca.sh
 . ./install-openvpn.sh
 . ./install-strongswan.sh

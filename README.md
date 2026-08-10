@@ -33,6 +33,7 @@ and has to be restored out of band first. See [Secrets](#secrets).
 | `install-hyprland-overrides.sh` | Adds `source =` lines for `hypr/*.conf` |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
 | `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
+| `install-chrome-profiles.sh` | Per-profile Chrome launchers (`koen`, `yourhosting`) |
 | `hypr/` | Hyprland override fragments (bindings, monitors, windows, input) |
 | `waybar/` | Full waybar config, VPN status script, style fragment |
 | `mako/` | Notification overrides layered on top of the current theme |
