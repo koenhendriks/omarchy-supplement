@@ -22,18 +22,32 @@ and has to be restored out of band first. See [Secrets](#secrets).
 
 ## Layout
 
+Scripts are listed in the order `install-all.sh` runs them: strip the stock
+install down first, then add packages, then layer config on top.
+
 | Path | What it is |
 | --- | --- |
-| `install-all.sh` | Runs everything, in order |
+| `install-all.sh` | Runs everything below, in order |
+| `install-browser.sh` | Installs Chrome and makes it the default browser |
+| `remove-default-browsers.sh` | Drops the browsers Omarchy ships (firefox, brave, edge, zen) |
+| `remove-webapps.sh` | Clears every Omarchy webapp |
+| `remove-preinstalled.sh` | Drops preinstalled apps not wanted here (obsidian, libreoffice, signal, …) |
+| `install-bind.sh` | `bind`, for `dig` and friends |
+| `install-bitwarden.sh` | Bitwarden desktop and CLI |
+| `install-phpstorm.sh` | PhpStorm and its bundled JRE |
 | `install-glab.sh` | GitLab CLI |
+| `install-teams.sh` | Teams for Linux |
+| `install-outlook.sh` | Outlook as an Omarchy webapp |
+| `install-yaak.sh` | Yaak, with a WebKitGTK workaround in its desktop entry |
+| `install-chrome-profiles.sh` | Per-profile Chrome launchers (`koen`, `yourhosting`) |
 | `install-le-ca.sh` | Let's Encrypt roots into the system trust store |
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-hyprland-overrides.sh` | Adds `source =` lines for `hypr/*.conf` |
+| `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
 | `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
-| `install-chrome-profiles.sh` | Per-profile Chrome launchers (`koen`, `yourhosting`) |
 | `hypr/` | Hyprland override fragments (bindings, monitors, windows, input) |
 | `waybar/` | Full waybar config, VPN status script, style fragment |
 | `mako/` | Notification overrides layered on top of the current theme |
