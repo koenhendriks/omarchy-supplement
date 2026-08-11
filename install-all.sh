@@ -30,3 +30,4 @@
 . ./install-claude-waybar.sh
 . ./install-waybar-config.sh
 . ./install-mako-config.sh
+. ./install-omarchy-notification-center.sh
