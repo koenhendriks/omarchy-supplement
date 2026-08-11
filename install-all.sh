@@ -12,6 +12,8 @@
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
 . ./install-dev-laravel.sh
+. ./install-php-pie.sh
+. ./install-php-extensions.sh
 . ./install-yarn.sh
 . ./install-nextcloud.sh
 . ./install-glab.sh
