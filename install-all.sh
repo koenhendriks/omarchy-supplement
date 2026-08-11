@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Install all packages in order
+. ./install-snap-pac.sh
 . ./install-browser.sh
 . ./remove-default-browsers.sh
 . ./remove-webapps.sh
