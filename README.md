@@ -46,6 +46,7 @@ install down first, then add packages, then layer config on top.
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-hyprland-overrides.sh` | Adds `source =` lines for `hypr/*.conf` |
+| `install-hypridle-config.sh` | Idle timings: screensaver 2.5 min, lock 30 min, suspend 40 min |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
 | `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
@@ -72,6 +73,21 @@ file loses the change on the next theme switch. `mako/config` here `include`s it
 and overrides afterwards, keeping the theme's colours while the anchor sticks.
 Only Omarchy's install-time `theme.sh` recreates that symlink, so this survives
 theme changes.
+
+**Hypridle** gets a longer leash than the stock 2.5 min screensaver / 5 min lock:
+the screensaver runs for 27.5 min, the screen locks at 30 min of idle, and the
+machine suspends at 40 min. `install-hypridle-config.sh` keeps Omarchy's
+`general{}` block verbatim — `lock_cmd`, `before_sleep_cmd` and `inhibit_sleep`
+are what make suspend safe, and are worth inheriting — and replaces only the
+listeners, as a marked block. The timings live in the script as three wall-clock
+constants; the timeouts in the file are derived from them.
+
+hypridle has no include mechanism that helps here. It does support `source =`, but
+listeners are purely additive: a sourced fragment can add a suspend listener and
+cannot raise the stock 5 min lock, which would then still fire. Hence the whole
+listener section is generated. **Editing the timings requires re-running
+`install-hypridle-config.sh`**, and so does an `omarchy refresh hypridle`, which
+puts the defaults back.
 
 `style.css` is the exception: it has to keep Omarchy's rules and the theme
 `@import` that defines `@background`, so the fragment is merged in as a marked
@@ -120,6 +136,26 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **The screensaver resets hypridle's idle timer.** `omarchy-launch-screensaver`
+  warps the cursor between monitors with `hyprctl dispatch focusmonitor`, and that
+  pointer motion counts as activity. So every listener that fires after it is
+  timed from the screensaver's own timeout, not from the start of idle — a lock
+  listener at 1800 s locks 32.5 min in, not 30. Omarchy's default config works
+  around it with a hardcoded "half + 2s margin" comment;
+  `install-hypridle-config.sh` subtracts the offset instead, so its three
+  constants can stay wall-clock. Locking does *not* reset the timer, which is why
+  the suspend listener can be timed from the same baseline.
+- **`omarchy-refresh-config` writes through a symlink.** It installs defaults with
+  `cp -f`, which follows the destination symlink, so the waybar trick of pointing
+  `~/.config` at a file in this repo would have `omarchy refresh hypridle`
+  overwrite the repo copy rather than the one in `~/.config`. `hypridle.conf` is
+  therefore generated as a plain file. Worth remembering before symlinking any
+  other config that has an `omarchy refresh` for it.
+- **`hypr/*.conf` is globbed into `hyprland.conf`.** `install-hyprland-overrides.sh`
+  appends a `source =` line for every `.conf` in `hypr/`, so config for a *different*
+  hypr daemon cannot be parked there: a `listener{}` block reaching Hyprland is a
+  config error, not an idle timer. That is why the hypridle listeners are a heredoc
+  in the script instead of a file next to `bindings.conf`.
 - **strongSwan ignores the system CA store.** `update-ca-trust` is not enough:
   charon only trusts certificates in `/etc/swanctl/x509ca`. Without them the
   handshake fails with `no issuer certificate found` even though `trust list`
