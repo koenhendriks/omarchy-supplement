@@ -129,3 +129,25 @@ line, collected here so it is findable.
   chgrps it to `wheel`, whose members can already become root. `swanctl
   --load-all` is the exception, it reads the rendered credentials under
   `/etc/swanctl` and still needs root.
+- **An `EXIT` trap in a sourced script replaces the one in `install-all.sh`.**
+  These scripts share a shell, and `install-vpn.sh` sets its own trap, so
+  `install-all.sh` cannot rely on a trap to clean up after itself. Its sudo
+  keep-alive loop therefore self-terminates on `kill -0 "$$"` instead.
+- **A background sudo keep-alive does not survive this run.** `install-all.sh`
+  asked for a second password around `install-php-pie.sh` — the first script with
+  a sudo line in it after a long stretch that needs none, because yay skips sudo
+  entirely when every package is already up to date. Refreshing sudo's timestamp
+  in the background did not fix it, with either `sudo -n true` or `sudo -n -v`
+  (only `-v` extends the timestamp at all; running a command just consumes the
+  existing ticket). `install-all.sh` now uses `omarchy-sudo-passwordless` instead
+  and does not rely on the credential cache. Why it held out is still unexplained,
+  so re-check before trusting a keep-alive here again.
+- **`omarchy-sudo-keepalive` has to be sourced, not run.** It kills its background
+  loop from an `EXIT` trap, and executing it as a command reaches that trap
+  immediately — so the loop is gone before it refreshes anything.
+- **Removing a NOPASSWD rule takes the privilege that removes it.**
+  `omarchy-sudo-passwordless` disables itself with `sudo rm` on the sudoers file
+  followed by `sudo systemctl stop` on the expiry timer, and that second `sudo` has
+  just lost the rule authorising it, so the tear-down asks for a password. Order
+  matters more than it looks: `install-all.sh` does both in one `sudo` call and
+  deletes the rule last.

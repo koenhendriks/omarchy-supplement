@@ -1,0 +1,517 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"sce",
+				"screensaver"
+			],
+			[
+				"APP_N",
+				"APP_NAMES_STRING"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "Searching 1069 files for \"passwordless sudo\"\n\n~/.local/share/omarchy/bin/omarchy-menu:\n  205  \n  206  show_toggle_menu() {\n  207:   local options=\"󱄄  Screensaver\\n󰔎  Nightlight\\n󱫖  Idle Lock\\n󰂛  Notifications\\n󰍜  Top Bar\\n󱂬  Workspace Layout\\n  Window Gaps\\n  1-Window Ratio\\n󰍹  Monitor Scaling\\n  Direct Boot\\n󰟵  Passwordless Sudo\"\n  208  \n  209    case $(menu \"Toggle\" \"$options\") in\n  ...\n  218    *Scaling*) omarchy-hyprland-monitor-scaling-cycle ;;\n  219    *\"Direct Boot\"*) present_terminal omarchy-config-direct-boot ;;\n  220:   *\"Passwordless Sudo\"*) present_terminal omarchy-sudo-passwordless ;;\n  221    *) back_to show_trigger_menu ;;\n  222    esac\n\n~/.local/share/omarchy/bin/omarchy-sudo-passwordless:\n    1  #!/bin/bash\n    2  \n    3: # omarchy:summary=Toggle passwordless sudo for the current user.\n    4  # omarchy:args=[MINUTES]\n    5  # omarchy:requires-sudo=true\n    .\n   14  fi\n   15  \n   16: echo \"Toggle passwordless sudo...\"\n   17  \n   18  # Safety: if the file exists but the timer doesn't (e.g. after reboot), clean up\n   ..\n   27      sudo systemd-run --on-active=${MINUTES}m --timer-property=AccuracySec=1s --unit=\"$TIMER_NAME\" \\\n   28        rm \"$NOPASSWD_FILE\"\n   29:     echo \"Passwordless sudo timer updated. It will now automatically disable in ${MINUTES} minutes.\"\n   30    else\n   31      sudo rm \"$NOPASSWD_FILE\"\n   32      sudo systemctl stop \"${TIMER_NAME}.timer\" 2>/dev/null\n   33:     echo \"Passwordless sudo has been DISABLED. Sudo will require a password again.\"\n   34    fi\n   35  else\n   ..\n   42    echo \"Anyone or anything with access to your user account gets full root.\"\n   43    echo \"\"\n   44:   echo \"Passwordless sudo will automatically disable after ${MINUTES} minutes.\"\n   45    echo \"Run this command again to disable it early.\"\n   46    echo \"\"\n   47  \n   48:   if gum confirm \"Enable passwordless sudo for ${MINUTES} minutes? This is a significant security risk!\"; then\n   49      echo \"${USER} ALL=(ALL) NOPASSWD: ALL\" | sudo tee \"$NOPASSWD_FILE\" > /dev/null\n   50      sudo chmod 440 \"$NOPASSWD_FILE\"\n   ..\n   53  \n   54      echo \"\"\n   55:     echo \"Passwordless sudo has been ENABLED. It will automatically disable in ${MINUTES} minutes.\"\n   56      echo \"Note: if you restart before then, run omarchy-sudo-passwordless again to disable it.\"\n   57    else\n\n9 matches across 2 files\n",
+			"settings":
+			{
+				"buffer_size": 2344,
+				"line_ending": "Unix",
+				"name": "Find Results",
+				"scratch": true
+			},
+			"undo_stack":
+			[
+			]
+		},
+		{
+			"file": "/home/koen/.local/share/omarchy/bin/omarchy-menu",
+			"settings":
+			{
+				"buffer_size": 32289,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+			]
+		},
+		{
+			"file": "install-all.sh",
+			"settings":
+			{
+				"buffer_size": 2361,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			},
+			"undo_stack":
+			[
+				[
+					3,
+					2,
+					"left_delete",
+					null,
+					"AgAAAC4CAAAAAAAALgIAAAAAAAABAAAAMC0CAAAAAAAALQIAAAAAAAABAAAANg",
+					"AQAAAAAAAAABAAAALwIAAAAAAAAvAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					4,
+					1,
+					"insert",
+					{
+						"characters": "5"
+					},
+					"AQAAAC0CAAAAAAAALgIAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAALQIAAAAAAAAtAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					5,
+					1,
+					"insert",
+					{
+						"characters": "s"
+					},
+					"AQAAAC4CAAAAAAAALwIAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAALgIAAAAAAAAuAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					6,
+					1,
+					"left_delete",
+					null,
+					"AQAAAC4CAAAAAAAALgIAAAAAAAABAAAAcw",
+					"AQAAAAAAAAABAAAALwIAAAAAAAAvAgAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					9,
+					1,
+					"left_delete",
+					null,
+					"AQAAAC4AAAAAAAAALgAAAAAAAACXAAAAS2VlcGluZyBzdWRvJ3Mgb3duIGNyZWRlbnRpYWwgY2FjaGUgd2FybSBpbiB0aGUKIyBiYWNrZ3JvdW5kIHdhcyB0cmllZCBoZXJlIHR3aWNlIGFuZCBkaWQgbm90IGhvbGQsIHNvIG5vdGhpbmcgYmVsb3cgZGVwZW5kcyBvbgojIHRoYXQgY2FjaGUgYW55IG1vcmU6IA",
+					"AQAAAAAAAAABAAAAxQAAAAAAAAAuAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					14,
+					3,
+					"left_delete",
+					null,
+					"AwAAAGQBAAAAAAAAZAEAAAAAAAABAAAALWMBAAAAAAAAYwEAAAAAAAABAAAALWIBAAAAAAAAYgEAAAAAAAABAAAAIA",
+					"AQAAAAAAAAABAAAAZQEAAAAAAABlAQAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					15,
+					1,
+					"insert",
+					{
+						"characters": " and"
+					},
+					"BAAAAGIBAAAAAAAAYwEAAAAAAAAAAAAAYwEAAAAAAABkAQAAAAAAAAAAAABkAQAAAAAAAGUBAAAAAAAAAAAAAGUBAAAAAAAAZgEAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAYgEAAAAAAABiAQAAAAAAAAAAAAAAAPC/"
+				]
+			]
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/home/koen/omarchy-supplement",
+		"/home/koen/omarchy-supplement/.claude",
+		"/home/koen/omarchy-supplement/.claude/skills",
+		"/home/koen/omarchy-supplement/.claude/skills/supplement-dev",
+		"/home/koen/omarchy-supplement/waybar",
+		"/home/koen/omarchy-supplement/waybar/scripts",
+		"/home/koen/.local/share/omarchy",
+		"/home/koen/.local/share/omarchy/bin"
+	],
+	"file_history":
+	[
+		"/home/koen/Documents/Provision Gateway discussies.txt",
+		"/home/koen/omarchy-supplement/enable-sshd.sh",
+		"/home/koen/omarchy-supplement/install-cronie.sh",
+		"/home/koen/omarchy-supplement/install-all.sh",
+		"/home/koen/omarchy-supplement/install-snap-pac.sh",
+		"/home/koen/omarchy-supplement/install-slackcli.sh",
+		"/home/koen/omarchy-supplement/install-php-pie.sh",
+		"/home/koen/omarchy-supplement/install-php-extensions.sh",
+		"/home/koen/Downloads/install.sh",
+		"/home/koen/omarchy-supplement/install-lsof.sh",
+		"/home/koen/.bash_aliases",
+		"/home/koen/.local/share/omarchy/bin/omarchy-install-dev-env",
+		"/home/koen/omarchy-supplement/waybar/config.jsonc",
+		"/home/koen/omarchy-supplement/install-nextcloud.sh",
+		"/home/koen/omarchy-supplement/install-dev-laravel.sh",
+		"/home/koen/omarchy-supplement/install-yarn.sh",
+		"/home/koen/omarchy-supplement/install-slack.sh",
+		"/mnt/timeshift/timeshift/snapshots/2026-08-07_10-00-00/localhost/home/koen/.bash_aliases",
+		"/home/koen/.bashrc",
+		"/home/koen/omarchy-supplement/install-screensaver.sh",
+		"/mnt/timeshift/timeshift/snapshots/2026-08-07_10-00-00/localhost/home/koen/.bashrc",
+		"/home/koen/omarchy-supplement/install-whatsapp.sh",
+		"/home/koen/omarchy-supplement/install-telegram.sh",
+		"/home/koen/omarchy-supplement/remove-preinstalled.sh",
+		"/mnt/timeshift/timeshift/snapshots/2026-08-07_10-00-00/localhost/usr/share/applications/google-chrome-koen.desktop",
+		"/home/koen/omarchy-supplement/install-phpstorm.sh",
+		"/home/koen/omarchy-supplement/install-claude-waybar.sh",
+		"/home/koen/.config/waybar/style.css",
+		"/home/koen/omarchy-supplement/waybar/style.css",
+		"/home/koen/omarchy-supplement/hypr/bindings.conf",
+		"/home/koen/omarchy-supplement/install-bind.sh",
+		"/home/koen/omarchy-supplement/install-chrome-profiles.sh",
+		"/home/koen/omarchy-supplement/install-outlook.sh",
+		"/home/koen/.local/share/omarchy/bin/omarchy-menu",
+		"/home/koen/.config/waybar/config.jsonc",
+		"/mnt/timeshift/timeshift/snapshots/2026-08-07_10-00-00/localhost/usr/share/applications/google-chrome-yourhosting.desktop",
+		"/home/koen/omarchy-supplement/install-bitwarden.sh",
+		"/home/koen/omarchy-supplement/install-teams.sh",
+		"/home/koen/.local/share/omarchy/bin/omarchy-webapp-install",
+		"/home/koen/.local/share/omarchy/bin/omarchy-hyprland-monitor-scaling-cycle",
+		"/home/koen/omarchy-supplement/install-browser.sh",
+		"/home/koen/omarchy-supplement/remove-default-browsers.sh",
+		"/home/koen/.local/share/omarchy/bin/omarchy-webapp-remove",
+		"/home/koen/omarchy-supplement/remove-webapps.sh",
+		"/home/koen/.local/share/omarchy/bin/omarchy-remove-browser",
+		"/home/koen/.local/share/omarchy/bin/omarchy-default-browser",
+		"/home/koen/omarchy-supplement/install-yaak.sh",
+		"/home/koen/omarchy-supplement/install-glab.sh",
+		"/home/koen/.local/share/omarchy/bin/omarchy-install-browser",
+		"/home/koen/omarchy-supplement/README.md",
+		"/home/koen/omarchy-supplement/waybar/scripts/vpn-status.sh",
+		"/home/koen/omarchy-supplement/vpn/README.md",
+		"/home/koen/omarchy-supplement/vpn/Sandwave.nmconnection",
+		"/home/koen/omarchy-supplement/install-strongswan.sh",
+		"/home/koen/omarchy-supplement/install-vpn.sh",
+		"/home/koen/omarchy-supplement/install-openvpn.sh",
+		"/home/koen/omarchy-supplement/install-le-ca.sh",
+		"/home/koen/omarchy-supplement/vpn/Sandwave.ovpn",
+		"/home/koen/Downloads/system-connections/Sandwave.nmconnection",
+		"/home/koen/Downloads/New vpn connection.nmconnection",
+		"/home/koen/Downloads/Sandwave_koen.hendriks_AMS02.nmconnection",
+		"/home/koen/.local/bin/codex",
+		"/home/koen/.local/share/omarchy/bin/omarchy-install-once",
+		"/home/koen/omarchy-supplement/.env.example",
+		"/home/koen/omarchy-supplement/.gitignore",
+		"/home/koen/.config/hypr/looknfeel.conf",
+		"/home/koen/.config/hypr/hyprland.conf",
+		"/home/koen/.config/hypr/custom-hypr/windows.conf",
+		"/home/koen/.config/hypr/monitors.conf",
+		"/home/koen/.config/hypr/custom-hypr/monitors.conf",
+		"/home/koen/omarchy-supplement/hypr/monitors.conf",
+		"/home/koen/Downloads/MassMarket.nmconnection",
+		"/home/koen/.config/hypr/bindings.conf",
+		"/home/koen/.config/hypr/input.conf",
+		"/home/koen/.config/hypr/custom-hypr/input.conf",
+		"/home/koen/.config/hypr/custom-hypr/bindings.conf",
+		"/home/koen/.local/share/omarchy/default/hypr/plain-bindings.conf",
+		"/home/koen/.config/waybar/scripts/vpn-status.sh"
+	],
+	"find":
+	{
+		"height": 45.0
+	},
+	"find_in_files":
+	{
+		"height": 119.0,
+		"where_history":
+		[
+			"/home/koen/.local/share/omarchy,<project filters>"
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"passwordless sudo",
+			"vpn"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"scrollbar_highlights": true,
+		"show_context": true,
+		"use_buffer2": true,
+		"use_gitignore": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 2344,
+						"regions":
+						{
+							"match":
+							{
+								"flags": 112,
+								"regions":
+								[
+									[
+										317,
+										334
+									],
+									[
+										541,
+										558
+									],
+									[
+										777,
+										794
+									],
+									[
+										929,
+										946
+									],
+									[
+										1210,
+										1227
+									],
+									[
+										1433,
+										1450
+									],
+									[
+										1653,
+										1670
+									],
+									[
+										1842,
+										1859
+									],
+									[
+										2111,
+										2128
+									]
+								],
+								"scope": ""
+							}
+						},
+						"selection":
+						[
+							[
+								583,
+								583
+							]
+						],
+						"settings":
+						{
+							"detect_indentation": false,
+							"line_numbers": false,
+							"output_tag": 1,
+							"result_base_dir": "",
+							"result_file_regex": "^([^ \t].*):$",
+							"result_line_regex": "^ +([0-9]+):",
+							"scroll_past_end": true,
+							"syntax": "Packages/Default/Find Results.hidden-tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"stack_multiselect": false,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/home/koen/.local/share/omarchy/bin/omarchy-menu",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 32289,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								6647,
+								6672
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/ShellScript/Bash.sublime-syntax",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 4973.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"stack_multiselect": false,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "install-all.sh",
+					"selected": true,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 2361,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2357,
+								2332
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/ShellScript/Bash.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 864.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"stack_multiselect": false,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 33.0
+	},
+	"input":
+	{
+		"height": 45.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 199.0,
+		"history":
+		[
+		]
+	},
+	"output.find_results":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"pinned_build_system": "",
+	"project": "omarchy.sublime-project",
+	"replace":
+	{
+		"height": 62.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 276.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
