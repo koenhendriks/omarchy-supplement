@@ -39,6 +39,7 @@ fi
 . ./install-screensaver.sh
 . ./install-bind.sh
 . ./install-lsof.sh
+. ./install-vlc.sh
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
 . ./install-dev-laravel.sh
