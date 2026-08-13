@@ -40,6 +40,7 @@ fi
 . ./install-bind.sh
 . ./install-lsof.sh
 . ./install-vlc.sh
+. ./install-vorbis-tools.sh
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
 . ./install-dev-laravel.sh
