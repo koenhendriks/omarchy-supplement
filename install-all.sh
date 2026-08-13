@@ -24,6 +24,7 @@
 . ./install-outlook.sh
 . ./install-slack.sh
 . ./install-yaak.sh
+. ./install-opendeck.sh
 . ./install-chrome-profiles.sh
 . ./install-le-ca.sh
 . ./install-openvpn.sh
