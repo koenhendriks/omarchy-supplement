@@ -4,6 +4,14 @@
 		"selected_items":
 		[
 			[
+				"RESOURCE",
+				"RESOURCES_DIR"
+			],
+			[
+				"RE",
+				"RESOURCES_DIR"
+			],
+			[
 				"sce",
 				"screensaver"
 			],
@@ -16,554 +24,237 @@
 	"buffers":
 	[
 		{
-			"contents": "Searching 1069 files for \"passwordless sudo\"\n\n~/.local/share/omarchy/bin/omarchy-menu:\n  205  \n  206  show_toggle_menu() {\n  207:   local options=\"󱄄  Screensaver\\n󰔎  Nightlight\\n󱫖  Idle Lock\\n󰂛  Notifications\\n󰍜  Top Bar\\n󱂬  Workspace Layout\\n  Window Gaps\\n  1-Window Ratio\\n󰍹  Monitor Scaling\\n  Direct Boot\\n󰟵  Passwordless Sudo\"\n  208  \n  209    case $(menu \"Toggle\" \"$options\") in\n  ...\n  218    *Scaling*) omarchy-hyprland-monitor-scaling-cycle ;;\n  219    *\"Direct Boot\"*) present_terminal omarchy-config-direct-boot ;;\n  220:   *\"Passwordless Sudo\"*) present_terminal omarchy-sudo-passwordless ;;\n  221    *) back_to show_trigger_menu ;;\n  222    esac\n\n~/.local/share/omarchy/bin/omarchy-sudo-passwordless:\n    1  #!/bin/bash\n    2  \n    3: # omarchy:summary=Toggle passwordless sudo for the current user.\n    4  # omarchy:args=[MINUTES]\n    5  # omarchy:requires-sudo=true\n    .\n   14  fi\n   15  \n   16: echo \"Toggle passwordless sudo...\"\n   17  \n   18  # Safety: if the file exists but the timer doesn't (e.g. after reboot), clean up\n   ..\n   27      sudo systemd-run --on-active=${MINUTES}m --timer-property=AccuracySec=1s --unit=\"$TIMER_NAME\" \\\n   28        rm \"$NOPASSWD_FILE\"\n   29:     echo \"Passwordless sudo timer updated. It will now automatically disable in ${MINUTES} minutes.\"\n   30    else\n   31      sudo rm \"$NOPASSWD_FILE\"\n   32      sudo systemctl stop \"${TIMER_NAME}.timer\" 2>/dev/null\n   33:     echo \"Passwordless sudo has been DISABLED. Sudo will require a password again.\"\n   34    fi\n   35  else\n   ..\n   42    echo \"Anyone or anything with access to your user account gets full root.\"\n   43    echo \"\"\n   44:   echo \"Passwordless sudo will automatically disable after ${MINUTES} minutes.\"\n   45    echo \"Run this command again to disable it early.\"\n   46    echo \"\"\n   47  \n   48:   if gum confirm \"Enable passwordless sudo for ${MINUTES} minutes? This is a significant security risk!\"; then\n   49      echo \"${USER} ALL=(ALL) NOPASSWD: ALL\" | sudo tee \"$NOPASSWD_FILE\" > /dev/null\n   50      sudo chmod 440 \"$NOPASSWD_FILE\"\n   ..\n   53  \n   54      echo \"\"\n   55:     echo \"Passwordless sudo has been ENABLED. It will automatically disable in ${MINUTES} minutes.\"\n   56      echo \"Note: if you restart before then, run omarchy-sudo-passwordless again to disable it.\"\n   57    else\n\n9 matches across 2 files\n",
+			"contents": "",
 			"settings":
 			{
-				"buffer_size": 2344,
-				"line_ending": "Unix",
-				"name": "Find Results",
-				"scratch": true
-			},
-			"undo_stack":
-			[
-			]
-		},
-		{
-			"file": "/home/koen/.local/share/omarchy/bin/omarchy-menu",
-			"settings":
-			{
-				"buffer_size": 32289,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			},
-			"undo_stack":
-			[
-			]
-		},
-		{
-			"file": "hypr/bindings.conf",
-			"settings":
-			{
-				"buffer_size": 1281,
-				"encoding": "UTF-8",
+				"buffer_size": 0,
 				"line_ending": "Unix"
 			},
 			"undo_stack":
 			[
 				[
-					3,
+					57,
 					1,
 					"insert",
 					{
-						"characters": "\n\n\n"
+						"characters": "-"
 					},
-					"AwAAAO4DAAAAAAAA7wMAAAAAAAAAAAAA7wMAAAAAAADwAwAAAAAAAAAAAADwAwAAAAAAAPEDAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA7gMAAAAAAADuAwAAAAAAAAAAAAAAAPC/"
+					"AQAAAAAAAAAAAAAAAQAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
-					4,
-					1,
-					"paste",
-					null,
-					"AQAAAPEDAAAAAAAAsAQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA8QMAAAAAAADxAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					6,
+					58,
 					1,
 					"insert",
 					{
-						"characters": "\n#"
+						"characters": " da"
 					},
-					"AgAAAPADAAAAAAAA8QMAAAAAAAAAAAAA8QMAAAAAAADyAwAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA8AMAAAAAAADwAwAAAAAAAAAAAAAAQGpA"
+					"AwAAAAEAAAAAAAAAAgAAAAAAAAAAAAAAAgAAAAAAAAADAAAAAAAAAAAAAAADAAAAAAAAAAQAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
-					7,
-					1,
-					"insert",
-					{
-						"characters": " Add"
-					},
-					"BAAAAPIDAAAAAAAA8wMAAAAAAAAAAAAA8wMAAAAAAAD0AwAAAAAAAAAAAAD0AwAAAAAAAPUDAAAAAAAAAAAAAPUDAAAAAAAA9gMAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA8gMAAAAAAADyAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					8,
-					1,
-					"insert",
-					{
-						"characters": " sound"
-					},
-					"BgAAAPYDAAAAAAAA9wMAAAAAAAAAAAAA9wMAAAAAAAD4AwAAAAAAAAAAAAD4AwAAAAAAAPkDAAAAAAAAAAAAAPkDAAAAAAAA+gMAAAAAAAAAAAAA+gMAAAAAAAD7AwAAAAAAAAAAAAD7AwAAAAAAAPwDAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA9gMAAAAAAAD2AwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					9,
-					1,
-					"insert",
-					{
-						"characters": " to"
-					},
-					"AwAAAPwDAAAAAAAA/QMAAAAAAAAAAAAA/QMAAAAAAAD+AwAAAAAAAAAAAAD+AwAAAAAAAP8DAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA/AMAAAAAAAD8AwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					10,
-					1,
-					"insert",
-					{
-						"characters": " volume"
-					},
-					"BwAAAP8DAAAAAAAAAAQAAAAAAAAAAAAAAAQAAAAAAAABBAAAAAAAAAAAAAABBAAAAAAAAAIEAAAAAAAAAAAAAAIEAAAAAAAAAwQAAAAAAAAAAAAAAwQAAAAAAAAEBAAAAAAAAAAAAAAEBAAAAAAAAAUEAAAAAAAAAAAAAAUEAAAAAAAABgQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA/wMAAAAAAAD/AwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					11,
-					1,
-					"insert",
-					{
-						"characters": " change."
-					},
-					"CAAAAAYEAAAAAAAABwQAAAAAAAAAAAAABwQAAAAAAAAIBAAAAAAAAAAAAAAIBAAAAAAAAAkEAAAAAAAAAAAAAAkEAAAAAAAACgQAAAAAAAAAAAAACgQAAAAAAAALBAAAAAAAAAAAAAALBAAAAAAAAAwEAAAAAAAAAAAAAAwEAAAAAAAADQQAAAAAAAAAAAAADQQAAAAAAAAOBAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAABgQAAAAAAAAGBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					13,
-					1,
-					"insert",
-					{
-						"characters": " &&"
-					},
-					"AwAAAG0EAAAAAAAAbgQAAAAAAAAAAAAAbgQAAAAAAABvBAAAAAAAAAAAAABvBAAAAAAAAHAEAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAbQQAAAAAAABtBAAAAAAAAAAAAAAAIHJA"
-				],
-				[
-					14,
-					1,
-					"insert",
-					{
-						"characters": " "
-					},
-					"AQAAAHAEAAAAAAAAcQQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAcAQAAAAAAABwBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					31,
-					1,
-					"insert",
-					{
-						"characters": " &&"
-					},
-					"AwAAANIEAAAAAAAA0wQAAAAAAAAAAAAA0wQAAAAAAADUBAAAAAAAAAAAAADUBAAAAAAAANUEAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA0gQAAAAAAADSBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					32,
-					1,
-					"insert",
-					{
-						"characters": " "
-					},
-					"AQAAANUEAAAAAAAA1gQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA1QQAAAAAAADVBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					36,
-					1,
-					"",
-					null,
-					"AQAAAHEEAAAAAAAAkwQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAcQQAAAAAAABxBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					40,
-					1,
-					"",
-					null,
-					"AQAAAPgEAAAAAAAAGgUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA+AQAAAAAAAD4BAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					43,
-					1,
-					"right_delete",
-					null,
-					"AQAAAPcEAAAAAAAA9wQAAAAAAAABAAAAIA",
-					"AQAAAAAAAAABAAAA9wQAAAAAAAD3BAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					45,
-					1,
-					"right_delete",
-					null,
-					"AQAAAHAEAAAAAAAAcAQAAAAAAAABAAAAIA",
-					"AQAAAAAAAAABAAAAcAQAAAAAAABwBAAAAAAAAAAAAAAAAG5A"
-				],
-				[
-					52,
-					1,
-					"insert",
-					{
-						"characters": "bindd"
-					},
-					"BQAAAA8EAAAAAAAAEAQAAAAAAAAHAAAAYmluZGVsZBAEAAAAAAAAEQQAAAAAAAAAAAAAEQQAAAAAAAASBAAAAAAAAAAAAAASBAAAAAAAABMEAAAAAAAAAAAAABMEAAAAAAAAFAQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAADwQAAAAAAAAWBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					54,
-					1,
+					59,
+					2,
 					"left_delete",
 					null,
-					"AQAAABcEAAAAAAAAFwQAAAAAAAABAAAALA",
-					"AQAAAAAAAAABAAAAGAQAAAAAAAAYBAAAAAAAAAAAAAAAAPC/"
+					"AgAAAAMAAAAAAAAAAwAAAAAAAAABAAAAYQIAAAAAAAAAAgAAAAAAAAABAAAAZA",
+					"AQAAAAAAAAABAAAABAAAAAAAAAAEAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					60,
+					1,
+					"insert",
+					{
+						"characters": "koen"
+					},
+					"BAAAAAIAAAAAAAAAAwAAAAAAAAAAAAAAAwAAAAAAAAAEAAAAAAAAAAAAAAAEAAAAAAAAAAUAAAAAAAAAAAAAAAUAAAAAAAAABgAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAAgAAAAAAAAACAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					61,
+					1,
+					"insert",
+					{
+						"characters": "\ndaan"
+					},
+					"BQAAAAYAAAAAAAAABwAAAAAAAAAAAAAABwAAAAAAAAAIAAAAAAAAAAAAAAAIAAAAAAAAAAkAAAAAAAAAAAAAAAkAAAAAAAAACgAAAAAAAAAAAAAACgAAAAAAAAALAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAABgAAAAAAAAAGAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					62,
 					1,
 					"insert",
 					{
-						"characters": "\n\n\n"
+						"characters": "\n"
 					},
-					"AwAAABUFAAAAAAAAFgUAAAAAAAAAAAAAFgUAAAAAAAAXBQAAAAAAAAAAAAAXBQAAAAAAABgFAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAFQUAAAAAAAAVBQAAAAAAAP///////+9/"
+					"AQAAAAsAAAAAAAAADAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAACwAAAAAAAAALAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
-					68,
-					1,
-					"",
-					null,
-					"AQAAAA8EAAAAAAAAFQQAAAAAAAAFAAAAYmluZGQ",
-					"AQAAAAAAAAABAAAADwQAAAAAAAAUBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					74,
-					1,
-					"",
-					null,
-					"AQAAAJEEAAAAAAAAlwQAAAAAAAAHAAAAYmluZGVsZA",
-					"AQAAAAAAAAABAAAAkQQAAAAAAACYBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					77,
-					1,
-					"insert",
-					{
-						"characters": ","
-					},
-					"AQAAABgEAAAAAAAAGQQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAGAQAAAAAAAAYBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					88,
-					1,
-					"left_delete",
-					null,
-					"AQAAAC4EAAAAAAAALgQAAAAAAAALAAAAIFZvbHVtZSB1cCw",
-					"AQAAAAAAAAABAAAAOQQAAAAAAAAuBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					92,
-					3,
-					"left_delete",
-					null,
-					"AwAAAKcEAAAAAAAApwQAAAAAAAALAAAAVm9sdW1lIGRvd26mBAAAAAAAAKYEAAAAAAAAAQAAACClBAAAAAAAAKUEAAAAAAAAAQAAACw",
-					"AQAAAAAAAAABAAAApwQAAAAAAACyBAAAAAAAAAAAAAAAAPC/"
-				]
-			]
-		},
-		{
-			"file": "install-all.sh",
-			"settings":
-			{
-				"buffer_size": 3435,
-				"line_ending": "Unix"
-			},
-			"undo_stack":
-			[
-			]
-		},
-		{
-			"contents": "#!/bin/bash\n\nset -e\n\nyay -S --noconfirm --needed lsof",
-			"file": "install-vlc.sh",
-			"file_size": 52,
-			"file_write_time": 134310837626672184,
-			"redo_stack":
-			[
-				[
-					15,
-					1,
-					"",
-					null,
-					"AQAAADEAAAAAAAAANAAAAAAAAAAMAAAAdm9yYmlzLXRvb2xz",
-					"AQAAAAAAAAABAAAAPQAAAAAAAAA9AAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					6,
-					1,
-					"insert",
-					{
-						"characters": "vlc"
-					},
-					"AwAAADMAAAAAAAAAMwAAAAAAAAABAAAAYzIAAAAAAAAAMgAAAAAAAAABAAAAbDEAAAAAAAAANQAAAAAAAAABAAAAdg",
-					"AQAAAAAAAAABAAAANAAAAAAAAAA0AAAAAAAAAAAAAAAAAPC/"
-				]
-			],
-			"settings":
-			{
-				"buffer_size": 53,
-				"encoding": "UTF-8",
-				"line_ending": "Unix",
-				"name": "#!/bin/bash"
-			},
-			"undo_stack":
-			[
-				[
-					1,
-					1,
-					"paste",
-					null,
-					"AQAAAAAAAAAAAAAANQAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/"
-				]
-			]
-		},
-		{
-			"file": "install-vorbis-tools.sh",
-			"settings":
-			{
-				"buffer_size": 61,
-				"encoding": "UTF-8",
-				"line_ending": "Unix",
-				"name": "#!/bin/bash"
-			},
-			"undo_stack":
-			[
-				[
-					1,
-					1,
-					"paste",
-					null,
-					"AQAAAAAAAAAAAAAAPQAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/"
-				]
-			]
-		},
-		{
-			"file": "/home/koen/.local/bin/vpn-toggle",
-			"settings":
-			{
-				"buffer_size": 1728,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			},
-			"undo_stack":
-			[
-				[
-					1,
-					1,
-					"insert",
-					{
-						"characters": "#"
-					},
-					"AQAAAAAAAAAAAAAAAQAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					2,
-					1,
-					"left_delete",
-					null,
-					"AQAAAAAAAAAAAAAAAAAAAAAAAAABAAAAIw",
-					"AQAAAAAAAAABAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					4,
-					1,
-					"",
-					null,
-					"AQAAAAAAAAAAAAAAKQcAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					14,
-					1,
-					"left_delete",
-					null,
-					"AQAAAGwAAAAAAAAAbAAAAAAAAAABAAAAXw",
-					"AQAAAAAAAAABAAAAbQAAAAAAAABtAAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					15,
+					64,
 					1,
 					"insert",
 					{
 						"characters": "-"
 					},
-					"AQAAAGwAAAAAAAAAbQAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAbAAAAAAAAABsAAAAAAAAAAAAAAAAAPC/"
+					"AQAAAAcAAAAAAAAACAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAABwAAAAAAAAAHAAAAAAAAAAAAAAAAAAAA"
 				],
 				[
-					28,
-					1,
-					"",
-					null,
-					"AQAAAAAAAAAAAAAAyAUAAAAAAAApBwAAIyEvYmluL2Jhc2gKCiMgVG9nZ2xlIHNjcmlwdCBmb3IgVlBOczogTWFzc01hcmtldCAob3BlbnZwbjMpIGFuZCBTYW5kd2F2ZSAoc3Ryb25nU3dhbi9zd2FuY3RsKS4KIyBVc2FnZTogdnBuLXRvZ2dsZSA8VlBOX05BTUU+CgpWUE5fTkFNRT0iJDEiCgppZiBbIC16ICIkVlBOX05BTUUiIF07IHRoZW4KICAgIGVjaG8gIlVzYWdlOiAkMCA8VlBOX05BTUU+IgogICAgZWNobyAiU3VwcG9ydGVkIFZQTnM6IE1hc3NNYXJrZXQsIFNhbmR3YXZlIgogICAgZXhpdCAxCmZpCgojIC0tLSBTdGF0dXMgRnVuY3Rpb25zIChmcm9tIHlvdXIgb3JpZ2luYWwgc2NyaXB0KSAtLS0KCm9wZW52cG4zX2Nvbm5lY3RlZCgpIHsKICAgIGNvbW1hbmQgLXYgb3BlbnZwbjMgPi9kZXYvbnVsbCB8fCByZXR1cm4gMQogICAgb3BlbnZwbjMgc2Vzc2lvbnMtbGlzdCAyPi9kZXYvbnVsbCB8IGF3ayAtdiBuYW1lPSIkMSIgJwogICAgICAgIC9eICpDb25maWcgbmFtZTovIHsgY2ZnID0gJDMgfQogICAgICAgIC9eICpTdGF0dXM6LyAmJiBjZmcgPT0gbmFtZSAmJiAvQ2xpZW50IGNvbm5lY3RlZC8geyBmb3VuZCA9IDEgfQogICAgICAgIEVORCB7IGV4aXQgZm91bmQgPyAwIDogMSB9CiAgICAnCn0KCnN3YW5jdGxfY29ubmVjdGVkKCkgewogICAgY29tbWFuZCAtdiBzd2FuY3RsID4vZGV2L251bGwgfHwgcmV0dXJuIDEKICAgIHN3YW5jdGwgLS1saXN0LXNhcyAyPi9kZXYvbnVsbCB8IGdyZXAgLXFFICJeJDE6ICNbMC05XSssIEVTVEFCTElTSEVEIgp9CgojIC0tLSBUb2dnbGUgRnVuY3Rpb25zIC0tLQoKdG9nZ2xlX29wZW52cG4zKCkgewogICAgbG9jYWwgbmFtZT0iJDEiCiAgICBpZiBvcGVudnBuM19jb25uZWN0ZWQgIiRuYW1lIjsgdGhlbgogICAgICAgIGVjaG8gIkRpc2Nvbm5lY3RpbmcgTWFzc01hcmtldCAoT3BlblZQTjMpLi4uIgogICAgICAgIG9wZW52cG4zIHNlc3Npb24tbWFuYWdlIC0tY29uZmlnICIkbmFtZSIgLS1kaXNjb25uZWN0CiAgICBlbHNlCiAgICAgICAgZWNobyAiQ29ubmVjdGluZyBNYXNzTWFya2V0IChPcGVuVlBOMykuLi4iCiAgICAgICAgb3BlbnZwbjMgc2Vzc2lvbi1zdGFydCAtLWNvbmZpZyAiJG5hbWUiCiAgICBmaQp9Cgp0b2dnbGVfc3dhbmN0bCgpIHsKICAgIGxvY2FsIG5hbWU9IiQxIgogICAgaWYgc3dhbmN0bF9jb25uZWN0ZWQgIiRuYW1lIjsgdGhlbgogICAgICAgIGVjaG8gIkRpc2Nvbm5lY3RpbmcgU2FuZHdhdmUgKHN0cm9uZ1N3YW4pLi4uIgogICAgICAgICMgVGVybWluYXRlcyB0aGUgSUtFIFNlY3VyaXR5IEFzc29jaWF0aW9uCiAgICAgICAgc3VkbyBzd2FuY3RsIC0tdGVybWluYXRlIC0taWtlICIkbmFtZSIgCiAgICBlbHNlCiAgICAgICAgZWNobyAiQ29ubmVjdGluZyBTYW5kd2F2ZSAoc3Ryb25nU3dhbikuLi4iCiAgICAgICAgIyBJbml0aWF0ZXMgdGhlIGNoaWxkIFNBICh3aGljaCBpbXBsaWNpdGx5IGJyaW5ncyB1cCB0aGUgSUtFIFNBKQogICAgICAgIHN1ZG8gc3dhbmN0bCAtLWluaXRpYXRlIC0tY2hpbGQgIiRuYW1lIiAKICAgIGZpCn0KCiMgLS0tIE1haW4gTG9naWMgLS0tCgpjYXNlICIkVlBOX05BTUUiIGluCiAgICBNYXNzTWFya2V0KSAKICAgICAgICB0b2dnbGVfb3BlbnZwbjMgIiRWUE5fTkFNRSIgCiAgICAgICAgOzsKICAgIFNhbmR3YXZlKSAgIAogICAgICAgIHRvZ2dsZV9zd2FuY3RsICIkVlBOX05BTUUiIAogICAgICAgIDs7CiAgICAqKSAgICAgICAgICAKICAgICAgICBlY2hvICJFcnJvcjogVW5rbm93biBWUE4gJyRWUE5fTkFNRSciCiAgICAgICAgZWNobyAiU3VwcG9ydGVkIFZQTnM6IE1hc3NNYXJrZXQsIFNhbmR3YXZlIgogICAgICAgIGV4aXQgMSAKICAgICAgICA7Owplc2Fj",
-					"AQAAAAAAAAABAAAAAAAAAAAAAAApBwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					38,
-					2,
-					"right_delete",
-					null,
-					"AgAAAD4EAAAAAAAAPgQAAAAAAAAEAAAAc3Vkbz4EAAAAAAAAPgQAAAAAAAABAAAAIA",
-					"AQAAAAAAAAABAAAAPgQAAAAAAABCBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					43,
-					2,
-					"right_delete",
-					null,
-					"AgAAAJQEAAAAAAAAlAQAAAAAAAAEAAAAc3Vkb5QEAAAAAAAAlAQAAAAAAAABAAAAIA",
-					"AQAAAAAAAAABAAAAlAQAAAAAAACYBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					48,
-					1,
-					"cut",
-					null,
-					"AQAAAMgCAAAAAAAAyAIAAAAAAAAZAAAAICAgIGVjaG8gLW4gInRvZ2dsZS4uLiAiCg",
-					"AQAAAAAAAAABAAAA4AIAAAAAAADgAgAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					60,
-					1,
-					"cut",
-					null,
-					"AQAAAN0DAAAAAAAA3QMAAAAAAAAZAAAAICAgIGVjaG8gLW4gInRvZ2dsZS4uLiAiCg",
-					"AQAAAAAAAAABAAAA9QMAAAAAAAD1AwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					66,
+					65,
 					1,
 					"insert",
 					{
-						"characters": "$name"
+						"characters": " "
 					},
-					"BQAAAEwEAAAAAAAATQQAAAAAAAAAAAAATQQAAAAAAABOBAAAAAAAAAAAAABOBAAAAAAAAE8EAAAAAAAAAAAAAE8EAAAAAAAAUAQAAAAAAAAAAAAAUAQAAAAAAABRBAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAATAQAAAAAAABMBAAAAAAAAAAAAAAAAPC/"
+					"AQAAAAgAAAAAAAAACQAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAACAAAAAAAAAAIAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					67,
 					1,
 					"insert",
 					{
-						"characters": " "
+						"characters": "\nthi"
 					},
-					"AQAAAFEEAAAAAAAAUgQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAUQQAAAAAAABRBAAAAAAAAAAAAAAAAPC/"
+					"BAAAAA0AAAAAAAAADgAAAAAAAAAAAAAADgAAAAAAAAAPAAAAAAAAAAAAAAAPAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAEQAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAADQAAAAAAAAANAAAAAAAAAP///////+9/"
+				],
+				[
+					68,
+					3,
+					"left_delete",
+					null,
+					"AwAAABAAAAAAAAAAEAAAAAAAAAABAAAAaQ8AAAAAAAAADwAAAAAAAAABAAAAaA4AAAAAAAAADgAAAAAAAAABAAAAdA",
+					"AQAAAAAAAAABAAAAEQAAAAAAAAARAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					69,
 					1,
-					"left_delete",
-					null,
-					"AQAAAFIEAAAAAAAAUgQAAAAAAAABAAAAbw",
-					"AQAAAAAAAAABAAAAUwQAAAAAAABTBAAAAAAAAAAAAAAAAPC/"
+					"insert",
+					{
+						"characters": "-"
+					},
+					"AQAAAA4AAAAAAAAADwAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAADgAAAAAAAAAOAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					70,
 					1,
 					"insert",
 					{
-						"characters": "O"
+						"characters": " thijs"
 					},
-					"AQAAAFIEAAAAAAAAUwQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAUgQAAAAAAABSBAAAAAAAAAAAAAAAAPC/"
+					"BgAAAA8AAAAAAAAAEAAAAAAAAAAAAAAAEAAAAAAAAAARAAAAAAAAAAAAAAARAAAAAAAAABIAAAAAAAAAAAAAABIAAAAAAAAAEwAAAAAAAAAAAAAAEwAAAAAAAAAUAAAAAAAAAAAAAAAUAAAAAAAAABUAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAADwAAAAAAAAAPAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					71,
+					1,
+					"insert",
+					{
+						"characters": " glenn"
+					},
+					"BgAAABUAAAAAAAAAFgAAAAAAAAAAAAAAFgAAAAAAAAAXAAAAAAAAAAAAAAAXAAAAAAAAABgAAAAAAAAAAAAAABgAAAAAAAAAGQAAAAAAAAAAAAAAGQAAAAAAAAAaAAAAAAAAAAAAAAAaAAAAAAAAABsAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAFQAAAAAAAAAVAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					72,
+					1,
+					"insert",
+					{
+						"characters": " -ce"
+					},
+					"BAAAABsAAAAAAAAAHAAAAAAAAAAAAAAAHAAAAAAAAAAdAAAAAAAAAAAAAAAdAAAAAAAAAB4AAAAAAAAAAAAAAB4AAAAAAAAAHwAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAGwAAAAAAAAAbAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					73,
+					9,
+					"left_delete",
+					null,
+					"CQAAAB4AAAAAAAAAHgAAAAAAAAABAAAAZR0AAAAAAAAAHQAAAAAAAAABAAAAYxwAAAAAAAAAHAAAAAAAAAABAAAALRsAAAAAAAAAGwAAAAAAAAABAAAAIBoAAAAAAAAAGgAAAAAAAAABAAAAbhkAAAAAAAAAGQAAAAAAAAABAAAAbhgAAAAAAAAAGAAAAAAAAAABAAAAZRcAAAAAAAAAFwAAAAAAAAABAAAAbBYAAAAAAAAAFgAAAAAAAAABAAAAZw",
+					"AQAAAAAAAAABAAAAHwAAAAAAAAAfAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					74,
+					1,
+					"insert",
+					{
+						"characters": "\n-"
+					},
+					"AgAAABYAAAAAAAAAFwAAAAAAAAAAAAAAFwAAAAAAAAAYAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAFgAAAAAAAAAWAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					75,
+					1,
+					"insert",
+					{
+						"characters": " "
+					},
+					"AQAAABgAAAAAAAAAGQAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAGAAAAAAAAAAYAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					76,
 					1,
 					"insert",
 					{
-						"characters": "$name\""
+						"characters": "cedrec"
 					},
-					"BgAAAKkEAAAAAAAAqgQAAAAAAAAAAAAAqgQAAAAAAACrBAAAAAAAAAAAAACrBAAAAAAAAKwEAAAAAAAAAAAAAKwEAAAAAAAArQQAAAAAAAAAAAAArQQAAAAAAACuBAAAAAAAAAAAAACuBAAAAAAAAK8EAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAqQQAAAAAAACpBAAAAAAAAAAAAAAAAPC/"
+					"BgAAABkAAAAAAAAAGgAAAAAAAAAAAAAAGgAAAAAAAAAbAAAAAAAAAAAAAAAbAAAAAAAAABwAAAAAAAAAAAAAABwAAAAAAAAAHQAAAAAAAAAAAAAAHQAAAAAAAAAeAAAAAAAAAAAAAAAeAAAAAAAAAB8AAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAGQAAAAAAAAAZAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					77,
 					1,
-					"left_delete",
-					null,
-					"AQAAAK4EAAAAAAAArgQAAAAAAAABAAAAIg",
-					"AQAAAAAAAAABAAAArwQAAAAAAACvBAAAAAAAAAAAAAAAAPC/"
+					"insert",
+					{
+						"characters": "\n-"
+					},
+					"AgAAAB8AAAAAAAAAIAAAAAAAAAAAAAAAIAAAAAAAAAAhAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAHwAAAAAAAAAfAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					78,
 					1,
 					"insert",
 					{
+						"characters": " arno"
+					},
+					"BQAAACEAAAAAAAAAIgAAAAAAAAAAAAAAIgAAAAAAAAAjAAAAAAAAAAAAAAAjAAAAAAAAACQAAAAAAAAAAAAAACQAAAAAAAAAJQAAAAAAAAAAAAAAJQAAAAAAAAAmAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAIQAAAAAAAAAhAAAAAAAAAAAAAAAAAPC/"
+				],
+				[
+					79,
+					1,
+					"insert",
+					{
 						"characters": " "
 					},
-					"AQAAAK4EAAAAAAAArwQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAArgQAAAAAAACuBAAAAAAAAAAAAAAAAPC/"
+					"AQAAACYAAAAAAAAAJwAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAJgAAAAAAAAAmAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					80,
 					1,
-					"left_delete",
-					null,
-					"AQAAAK8EAAAAAAAArwQAAAAAAAABAAAAbw",
-					"AQAAAAAAAAABAAAAsAQAAAAAAACwBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					81,
-					1,
 					"insert",
 					{
-						"characters": "O"
+						"characters": "\n"
 					},
-					"AQAAAK8EAAAAAAAAsAQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAArwQAAAAAAACvBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					88,
-					1,
-					"insert",
-					{
-						"characters": "$NAME"
-					},
-					"CgAAAKgDAAAAAAAAqQMAAAAAAAAAAAAATAMAAAAAAABNAwAAAAAAAAAAAACqAwAAAAAAAKsDAAAAAAAAAAAAAE0DAAAAAAAATgMAAAAAAAAAAAAArAMAAAAAAACtAwAAAAAAAAAAAABOAwAAAAAAAE8DAAAAAAAAAAAAAK4DAAAAAAAArwMAAAAAAAAAAAAATwMAAAAAAABQAwAAAAAAAAAAAACwAwAAAAAAALEDAAAAAAAAAAAAAFADAAAAAAAAUQMAAAAAAAAAAAAA",
-					"AQAAAAAAAAACAAAATAMAAAAAAABMAwAAAAAAAAAAAAAAAPC/qAMAAAAAAACoAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					89,
-					1,
-					"insert",
-					{
-						"characters": " "
-					},
-					"AgAAALIDAAAAAAAAswMAAAAAAAAAAAAAUQMAAAAAAABSAwAAAAAAAAAAAAA",
-					"AQAAAAAAAAACAAAAUQMAAAAAAABRAwAAAAAAAAAAAAAAAPC/sgMAAAAAAACyAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					90,
-					5,
-					"left_delete",
-					null,
-					"CgAAALMDAAAAAAAAswMAAAAAAAABAAAAIFEDAAAAAAAAUQMAAAAAAAABAAAAILEDAAAAAAAAsQMAAAAAAAABAAAARVADAAAAAAAAUAMAAAAAAAABAAAARa8DAAAAAAAArwMAAAAAAAABAAAATU8DAAAAAAAATwMAAAAAAAABAAAATa0DAAAAAAAArQMAAAAAAAABAAAAQU4DAAAAAAAATgMAAAAAAAABAAAAQasDAAAAAAAAqwMAAAAAAAABAAAATk0DAAAAAAAATQMAAAAAAAABAAAATg",
-					"AQAAAAAAAAACAAAAUgMAAAAAAABSAwAAAAAAAAAAAAAAAPC/tAMAAAAAAAC0AwAAAAAAAAAAAAAAAPC/"
+					"AQAAACcAAAAAAAAAKAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAJwAAAAAAAAAnAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
 					91,
 					1,
 					"insert",
 					{
-						"characters": "name"
+						"characters": "-"
 					},
-					"CAAAAKoDAAAAAAAAqwMAAAAAAAAAAAAATQMAAAAAAABOAwAAAAAAAAAAAACsAwAAAAAAAK0DAAAAAAAAAAAAAE4DAAAAAAAATwMAAAAAAAAAAAAArgMAAAAAAACvAwAAAAAAAAAAAABPAwAAAAAAAFADAAAAAAAAAAAAALADAAAAAAAAsQMAAAAAAAAAAAAAUAMAAAAAAABRAwAAAAAAAAAAAAA",
-					"AQAAAAAAAAACAAAATQMAAAAAAABNAwAAAAAAAAAAAAAAAPC/qgMAAAAAAACqAwAAAAAAAAAAAAAAAPC/"
+					"AQAAACgAAAAAAAAAKQAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAKAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAA"
 				],
 				[
 					92,
@@ -572,334 +263,26 @@
 					{
 						"characters": " "
 					},
-					"AgAAALIDAAAAAAAAswMAAAAAAAAAAAAAUQMAAAAAAABSAwAAAAAAAAAAAAA",
-					"AQAAAAAAAAACAAAAUQMAAAAAAABRAwAAAAAAAAAAAAAAAPC/sgMAAAAAAACyAwAAAAAAAAAAAAAAAPC/"
+					"AQAAACkAAAAAAAAAKgAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAKQAAAAAAAAApAAAAAAAAAAAAAAAAAPC/"
 				],
 				[
-					95,
-					1,
-					"left_delete",
-					null,
-					"AQAAAFIDAAAAAAAAUgMAAAAAAAABAAAAbw",
-					"AQAAAAAAAAABAAAAUwMAAAAAAABTAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					96,
+					111,
 					1,
 					"insert",
 					{
-						"characters": "O"
+						"characters": "stefan"
 					},
-					"AQAAAFIDAAAAAAAAUwMAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAUgMAAAAAAABSAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					98,
-					1,
-					"left_delete",
-					null,
-					"AQAAALQDAAAAAAAAtAMAAAAAAAABAAAAbw",
-					"AQAAAAAAAAABAAAAtQMAAAAAAAC1AwAAAAAAAAAAAAAAQGpA"
-				],
-				[
-					99,
-					1,
-					"insert",
-					{
-						"characters": "O"
-					},
-					"AQAAALQDAAAAAAAAtQMAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAtAMAAAAAAAC0AwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					106,
-					1,
-					"insert",
-					{
-						"characters": " \\n"
-					},
-					"AwAAAF0EAAAAAAAAXgQAAAAAAAAAAAAAXgQAAAAAAABfBAAAAAAAAAAAAABfBAAAAAAAAGAEAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAXQQAAAAAAABdBAAAAAAAAAAAAAAAAPC/"
+					"BgAAACoAAAAAAAAAKwAAAAAAAAAAAAAAKwAAAAAAAAAsAAAAAAAAAAAAAAAsAAAAAAAAAC0AAAAAAAAAAAAAAC0AAAAAAAAALgAAAAAAAAAAAAAALgAAAAAAAAAvAAAAAAAAAAAAAAAvAAAAAAAAADAAAAAAAAAAAAAAAA",
+					"AQAAAAAAAAABAAAAKgAAAAAAAAAqAAAAAAAAAP///////+9/"
 				],
 				[
 					113,
 					1,
-					"insert",
-					{
-						"characters": "\""
-					},
-					"AQAAAF0EAAAAAAAAXgQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAXQQAAAAAAABdBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					114,
-					1,
-					"insert",
-					{
-						"characters": "\necho"
-					},
-					"BQAAAF4EAAAAAAAAZwQAAAAAAAAAAAAAZwQAAAAAAABoBAAAAAAAAAAAAABoBAAAAAAAAGkEAAAAAAAAAAAAAGkEAAAAAAAAagQAAAAAAAAAAAAAagQAAAAAAABrBAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAXgQAAAAAAABeBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					116,
-					2,
-					"left_delete",
+					"cut",
 					null,
-					"AgAAAG0EAAAAAAAAbQQAAAAAAAABAAAAbmwEAAAAAAAAbAQAAAAAAAABAAAAXA",
-					"AQAAAAAAAAABAAAAbgQAAAAAAABuBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					117,
-					1,
-					"right_delete",
-					null,
-					"AQAAAGwEAAAAAAAAbAQAAAAAAAABAAAAIA",
-					"AQAAAAAAAAABAAAAbAQAAAAAAABsBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					118,
-					1,
-					"insert",
-					{
-						"characters": "\""
-					},
-					"AQAAAGwEAAAAAAAAbQQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAbAQAAAAAAABsBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					121,
-					1,
-					"insert",
-					{
-						"characters": "\""
-					},
-					"AQAAAMkEAAAAAAAAygQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAyQQAAAAAAADJBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					122,
-					1,
-					"insert",
-					{
-						"characters": "\necho"
-					},
-					"BQAAAMoEAAAAAAAA0wQAAAAAAAAAAAAA0wQAAAAAAADUBAAAAAAAAAAAAADUBAAAAAAAANUEAAAAAAAAAAAAANUEAAAAAAAA1gQAAAAAAAAAAAAA1gQAAAAAAADXBAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAygQAAAAAAADKBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					123,
-					1,
-					"insert",
-					{
-						"characters": " \":"
-					},
-					"AwAAANcEAAAAAAAA2AQAAAAAAAAAAAAA2AQAAAAAAADZBAAAAAAAAAAAAADZBAAAAAAAANoEAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA1wQAAAAAAADXBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					124,
-					1,
-					"left_delete",
-					null,
-					"AQAAANkEAAAAAAAA2QQAAAAAAAABAAAAOg",
-					"AQAAAAAAAAABAAAA2gQAAAAAAADaBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					126,
-					1,
-					"left_delete",
-					null,
-					"AQAAANkEAAAAAAAA2QQAAAAAAAABAAAAIA",
-					"AQAAAAAAAAABAAAA2gQAAAAAAADaBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					131,
-					1,
-					"insert",
-					{
-						"characters": "\necho"
-					},
-					"BQAAAF4EAAAAAAAAZwQAAAAAAAAAAAAAZwQAAAAAAABoBAAAAAAAAAAAAABoBAAAAAAAAGkEAAAAAAAAAAAAAGkEAAAAAAAAagQAAAAAAAAAAAAAagQAAAAAAABrBAAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAXgQAAAAAAABeBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					132,
-					1,
-					"insert",
-					{
-						"characters": " "
-					},
-					"AQAAAGsEAAAAAAAAbAQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAawQAAAAAAABrBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					133,
-					1,
-					"insert_snippet",
-					{
-						"contents": "\"$0\""
-					},
-					"AQAAAGwEAAAAAAAAbgQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAbAQAAAAAAABsBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					138,
-					1,
-					"insert",
-					{
-						"characters": "\n"
-					},
-					"AQAAAG4EAAAAAAAAdwQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAbgQAAAAAAABuBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					139,
-					1,
-					"paste",
-					null,
-					"AQAAAHcEAAAAAAAAfgQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAdwQAAAAAAAB3BAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					140,
-					1,
-					"insert",
-					{
-						"characters": "\n"
-					},
-					"AQAAAH4EAAAAAAAAhwQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAfgQAAAAAAAB+BAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					141,
-					1,
-					"paste",
-					null,
-					"AQAAAIcEAAAAAAAAjgQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAhwQAAAAAAACHBAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					144,
-					1,
-					"insert",
-					{
-						"characters": "\n"
-					},
-					"AQAAAPoEAAAAAAAAAwUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAA+gQAAAAAAAD6BAAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					145,
-					1,
-					"paste",
-					null,
-					"AQAAAAMFAAAAAAAACgUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAAwUAAAAAAAADBQAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					146,
-					1,
-					"insert",
-					{
-						"characters": "\n"
-					},
-					"AQAAAAoFAAAAAAAAEwUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAACgUAAAAAAAAKBQAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					147,
-					1,
-					"paste",
-					null,
-					"AQAAABMFAAAAAAAAGgUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAEwUAAAAAAAATBQAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					148,
-					1,
-					"insert",
-					{
-						"characters": "\n"
-					},
-					"AQAAABoFAAAAAAAAIwUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAGgUAAAAAAAAaBQAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					149,
-					1,
-					"paste",
-					null,
-					"AQAAACMFAAAAAAAAKgUAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAIwUAAAAAAAAjBQAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					169,
-					1,
-					"paste",
-					null,
-					"AQAAAKgDAAAAAAAA9gMAAAAAAAAPAAAAZWNobyAiJG5hbWUgT24i",
-					"AQAAAAAAAAABAAAAtwMAAAAAAACoAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					172,
-					1,
-					"paste",
-					null,
-					"AQAAAEYDAAAAAAAAlAMAAAAAAAAQAAAAZWNobyAiJG5hbWUgT2ZmIg",
-					"AQAAAAAAAAABAAAAVgMAAAAAAABGAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					176,
-					1,
-					"left_delete",
-					null,
-					"AQAAAJIDAAAAAAAAkgMAAAAAAAABAAAAbg",
-					"AQAAAAAAAAABAAAAkwMAAAAAAACTAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					177,
-					1,
-					"insert",
-					{
-						"characters": "FF"
-					},
-					"AgAAAJIDAAAAAAAAkwMAAAAAAAAAAAAAkwMAAAAAAACUAwAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAkgMAAAAAAACSAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					178,
-					2,
-					"left_delete",
-					null,
-					"AgAAAJMDAAAAAAAAkwMAAAAAAAABAAAARpIDAAAAAAAAkgMAAAAAAAABAAAARg",
-					"AQAAAAAAAAABAAAAlAMAAAAAAACUAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					179,
-					1,
-					"insert",
-					{
-						"characters": "ff"
-					},
-					"AgAAAJIDAAAAAAAAkwMAAAAAAAAAAAAAkwMAAAAAAACUAwAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAkgMAAAAAAACSAwAAAAAAAAAAAAAAAPC/"
-				],
-				[
-					189,
-					2,
-					"paste",
-					null,
-					"AgAAAGIDAAAAAAAAcgMAAAAAAAAQAAAACiAgICAgICAgZWNobyAiInIDAAAAAAAAggMAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAcgMAAAAAAABiAwAAAAAAAP///////+9/"
-				],
-				[
-					192,
-					1,
-					"paste",
-					null,
-					"AQAAACMEAAAAAAAAMwQAAAAAAAAAAAAA",
-					"AQAAAAAAAAABAAAAIwQAAAAAAAAjBAAAAAAAAAAAAAAAAPC/"
+					"AQAAAAAAAAAAAAAAAAAAAAAAAAAxAAAALSBrb2VuCi0gZGFhbgotIHRoaWpzIAotIGNlZHJlYwotIGFybm8gCi0gc3RlZmFuCg",
+					"AQAAAAAAAAABAAAAAAAAAAAAAAAxAAAAAAAAAAAAAAAAAPC/"
 				]
 			]
 		}
@@ -936,16 +319,21 @@
 	},
 	"expanded_folders":
 	[
-		"/home/koen/omarchy-supplement",
-		"/home/koen/omarchy-supplement/resources",
-		"/home/koen/omarchy-supplement/waybar",
-		"/home/koen/omarchy-supplement/waybar/scripts",
-		"/home/koen/.local/bin"
+		"/home/koen/.local/share/omarchy",
+		"/home/koen/.local/share/omarchy/install"
 	],
 	"file_history":
 	[
-		"/home/koen/omarchy-supplement/install-all.sh",
+		"/home/koen/.local/bin/vpn-toggle",
+		"/home/koen/.local/share/omarchy/bin/omarchy-menu",
 		"/home/koen/Documents/Provision Gateway discussies.txt",
+		"/home/koen/omarchy-supplement/install-vorbis-tools.sh",
+		"/home/koen/omarchy-supplement/copy-resources.sh",
+		"/home/koen/omarchy-supplement/install-all.sh",
+		"/home/koen/omarchy-supplement/hypr/bindings.conf",
+		"/home/koen/.local/share/omarchy/install.sh",
+		"/home/koen/omarchy-supplement/install-hyprland-overrides.sh",
+		"/home/koen/omarchy-supplement/install-vlc.sh",
 		"/home/koen/omarchy-supplement/enable-sshd.sh",
 		"/home/koen/omarchy-supplement/install-cronie.sh",
 		"/home/koen/omarchy-supplement/install-snap-pac.sh",
@@ -973,11 +361,9 @@
 		"/home/koen/omarchy-supplement/install-claude-waybar.sh",
 		"/home/koen/.config/waybar/style.css",
 		"/home/koen/omarchy-supplement/waybar/style.css",
-		"/home/koen/omarchy-supplement/hypr/bindings.conf",
 		"/home/koen/omarchy-supplement/install-bind.sh",
 		"/home/koen/omarchy-supplement/install-chrome-profiles.sh",
 		"/home/koen/omarchy-supplement/install-outlook.sh",
-		"/home/koen/.local/share/omarchy/bin/omarchy-menu",
 		"/home/koen/.config/waybar/config.jsonc",
 		"/mnt/timeshift/timeshift/snapshots/2026-08-07_10-00-00/localhost/usr/share/applications/google-chrome-yourhosting.desktop",
 		"/home/koen/omarchy-supplement/install-bitwarden.sh",
@@ -1025,13 +411,14 @@
 	],
 	"find":
 	{
-		"height": 69.0
+		"height": 33.0
 	},
 	"find_in_files":
 	{
 		"height": 119.0,
 		"where_history":
 		[
+			"",
 			"/home/koen/.local/share/omarchy,<project filters>"
 		]
 	},
@@ -1040,6 +427,11 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"~/",
+			"$RESOURCES_INSTALL_DIR/$RESOURCES_DIR",
+			"RESOURCES_DIR",
+			"HOME",
+			"SCRIPT_DIR",
 			"\"\"\n",
 			"echo \"",
 			"toggle",
@@ -1068,134 +460,24 @@
 			[
 				{
 					"buffer": 0,
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 2344,
-						"regions":
-						{
-							"match":
-							{
-								"flags": 112,
-								"regions":
-								[
-									[
-										317,
-										334
-									],
-									[
-										541,
-										558
-									],
-									[
-										777,
-										794
-									],
-									[
-										929,
-										946
-									],
-									[
-										1210,
-										1227
-									],
-									[
-										1433,
-										1450
-									],
-									[
-										1653,
-										1670
-									],
-									[
-										1842,
-										1859
-									],
-									[
-										2111,
-										2128
-									]
-								],
-								"scope": ""
-							}
-						},
-						"selection":
-						[
-							[
-								583,
-								583
-							]
-						],
-						"settings":
-						{
-							"detect_indentation": false,
-							"line_numbers": false,
-							"output_tag": 1,
-							"result_base_dir": "",
-							"result_file_regex": "^([^ \t].*):$",
-							"result_line_regex": "^ +([0-9]+):",
-							"scroll_past_end": true,
-							"syntax": "Packages/Default/Find Results.hidden-tmLanguage"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 6,
-					"stack_multiselect": false,
-					"type": "text"
-				},
-				{
-					"buffer": 1,
-					"file": "/home/koen/.local/share/omarchy/bin/omarchy-menu",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 32289,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								6870,
-								6870
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/ShellScript/Bash.sublime-syntax",
-							"tab_size": 2,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 4973.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 2,
-					"stack_multiselect": false,
-					"type": "text"
-				},
-				{
-					"buffer": 2,
-					"file": "hypr/bindings.conf",
 					"selected": true,
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 1281,
+						"buffer_size": 0,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								436,
-								436
+								0,
+								0
 							]
 						],
 						"settings":
 						{
+							"auto_name": "",
 							"syntax": "Packages/Text/Plain text.tmLanguage"
 						},
 						"translation.x": 0.0,
@@ -1205,136 +487,13 @@
 					"stack_index": 0,
 					"stack_multiselect": false,
 					"type": "text"
-				},
-				{
-					"buffer": 3,
-					"file": "install-all.sh",
-					"semi_transient": true,
-					"settings":
-					{
-						"buffer_size": 3435,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2152,
-								2152
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/ShellScript/Bash.sublime-syntax",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 756.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"stack_multiselect": false,
-					"type": "text"
-				},
-				{
-					"buffer": 4,
-					"file": "install-vlc.sh",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 53,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								53,
-								53
-							]
-						],
-						"settings":
-						{
-							"auto_name": "#!/bin/bash",
-							"syntax": "Packages/ShellScript/Bash.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 4,
-					"stack_multiselect": false,
-					"type": "text"
-				},
-				{
-					"buffer": 5,
-					"file": "install-vorbis-tools.sh",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 61,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								61,
-								61
-							]
-						],
-						"settings":
-						{
-							"auto_name": "#!/bin/bash",
-							"syntax": "Packages/ShellScript/Bash.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 3,
-					"stack_multiselect": false,
-					"type": "text"
-				},
-				{
-					"buffer": 6,
-					"file": "/home/koen/.local/bin/vpn-toggle",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1728,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								1043,
-								1043
-							]
-						],
-						"settings":
-						{
-							"auto_name": "",
-							"syntax": "Packages/ShellScript/Bash.sublime-syntax",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 540.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 5,
-					"stack_multiselect": false,
-					"type": "text"
 				}
 			]
 		}
 	],
 	"incremental_find":
 	{
-		"height": 57.0
+		"height": 33.0
 	},
 	"input":
 	{
@@ -1381,7 +540,7 @@
 	"project": "omarchy.sublime-project",
 	"replace":
 	{
-		"height": 110.0
+		"height": 62.0
 	},
 	"save_all_on_build": true,
 	"select_file":
@@ -1390,6 +549,14 @@
 		"last_filter": "",
 		"selected_items":
 		[
+			[
+				"install-all",
+				"omarchy-supplement/install-all.sh"
+			],
+			[
+				"install",
+				"omarchy/install.sh"
+			]
 		],
 		"width": 0.0
 	},
