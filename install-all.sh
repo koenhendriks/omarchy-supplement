@@ -30,6 +30,7 @@ if ! sudo -n test -f "$SUDO_NOPASSWD_FILE" 2>/dev/null; then
 fi
 
 # Install all packages in order
+. ./copy-resources.sh
 . ./install-snap-pac.sh
 . ./install-browser.sh
 . ./remove-default-browsers.sh
