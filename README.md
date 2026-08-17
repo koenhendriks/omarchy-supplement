@@ -49,6 +49,7 @@ install down first, then add packages, then layer config on top.
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: toasts at top-centre |
+| `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the three plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
@@ -117,6 +118,21 @@ the per-core inputs beside it. Load is a delta between runs, cached in
 `XDG_RUNTIME_DIR`: `/proc/stat` counts jiffies since boot, so one read says
 nothing about now, and caching means the figure covers the poll interval without
 the script having to sleep.
+
+**Clock on the right.** `panels/clock/Panel.qml` hardcodes `centerOnBar: true`,
+and `Ui/PopupCard.qml` honours that by ignoring the icon entirely and using
+`window.width / 2` — so a clock anywhere but the middle opens its calendar in the
+centre of the screen. `install-omarchy-clock.sh` clones the widget and turns that
+literal into `root.setting("centerOnBar", true)`, so stock behaviour stays the
+default and `omarchy/shell-bar.json` decides per placement. `omarchy.weather`
+hardcodes it the same way, and will need the same treatment if it ever leaves the
+centre.
+
+Cloning a bar widget rewrites the layout entry's id in place — `omarchy.clock`
+becomes `<user>.clock` — and keeps the entry's own settings. Because that id is
+per-user, the fragment spells it `@user@.clock` and
+`install-omarchy-shell.sh` substitutes the placeholder when merging, so the
+checked-in layout carries no particular username.
 
 **Bar width on the ultrawide.** waybar had `"width": 2560`, so on the 5120px AOC
 the bar covered the middle half. Quickshell has no width setting — the bar
@@ -204,6 +220,11 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **The notification "centre" is a toast replay, not a panel.**
+  `omarchy-shell notifications showHistory` re-shows past notifications through
+  the normal toast column (`Service.qml`'s `showRecentHistory`), so history appears
+  wherever toasts appear — top-centre here — and not anchored to whatever widget
+  opened it. Nothing to reposition per-widget; moving history means moving toasts.
 - **A Lua-registered layout is selected as `lua:<name>`, not `<name>`.**
   `hl.layout.register("custom_center", ...)` registers fine, and a workspace rule
   or `general:layout` set to the bare `custom_center` is accepted without a word

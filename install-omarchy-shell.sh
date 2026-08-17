@@ -52,13 +52,20 @@ fi
 MERGED="$(mktemp)"
 
 python3 - "$BAR_FRAGMENT" "$SHELL_CONFIG" "$SHELL_DEFAULT" "$MERGED" <<'PY'
+import getpass
 import json
+import os
 import sys
 
 fragment_path, config_path, default_path, out_path = sys.argv[1:5]
 
+# Widget ids for cloned plugins are per-user (<user>.clock), so the fragment
+# spells them "@user@.clock" and the placeholder is filled in here. That keeps the
+# checked-in layout free of one particular username.
+user = os.environ.get("USER") or getpass.getuser()
+
 with open(fragment_path) as handle:
-    fragment = json.load(handle)
+    fragment = json.loads(handle.read().replace("@user@", user))
 
 # No user file yet means the shell is running off the packaged defaults.
 try:

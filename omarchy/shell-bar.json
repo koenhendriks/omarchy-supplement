@@ -1,5 +1,5 @@
 {
-  "centerAnchor": "omarchy.clock",
+  "centerAnchor": "omarchy.active-window",
   "maxWidth": 2560,
   "layout": {
     "left": [
@@ -15,13 +15,10 @@
     ],
     "center": [
       {
-        "id": "omarchy.active-window"
+        "id": "omarchy.indicators"
       },
       {
-        "id": "omarchy.clock",
-        "format": "dddd HH:mm",
-        "formatAlt": "d MMMM 'W'ww yyyy",
-        "verticalFormat": "HH\n—\nmm"
+        "id": "omarchy.active-window"
       },
       {
         "id": "omarchy.weather"
@@ -31,9 +28,6 @@
       },
       {
         "id": "omarchy.keyboard-layout"
-      },
-      {
-        "id": "omarchy.indicators"
       }
     ],
     "right": [
@@ -78,7 +72,22 @@
         "interval": 5
       },
       {
+        "id": "notifications",
+        "type": "command",
+        "text": "󰂚",
+        "tooltip": "Notification history",
+        "onClick": "omarchy-shell notifications showHistory",
+        "onRightClick": "omarchy-shell notifications dismissAll"
+      },
+      {
         "id": "omarchy.power"
+      },
+      {
+        "id": "@user@.clock",
+        "format": "dddd HH:mm",
+        "formatAlt": "d MMMM 'W'ww yyyy",
+        "verticalFormat": "HH\n—\nmm",
+        "centerOnBar": false
       }
     ]
   }

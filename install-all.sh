@@ -66,6 +66,7 @@ fi
 . ./install-hyprland-overrides.sh
 . ./install-omarchy-bar.sh
 . ./install-omarchy-notifications.sh
+. ./install-omarchy-clock.sh
 . ./install-omarchy-shell.sh
 . ./enable-sshd.sh
 
