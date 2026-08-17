@@ -74,10 +74,8 @@
       {
         "id": "cpu",
         "type": "command",
-        "text": "󰍛",
-        "tooltip": "System monitor",
-        "onClick": "omarchy-launch-or-focus-tui btop",
-        "onRightClick": "omarchy-launch-terminal"
+        "exec": "~/.config/omarchy/bar/scripts/cpu",
+        "interval": 5
       },
       {
         "id": "omarchy.power"

@@ -85,7 +85,7 @@ The mapping from the old waybar config:
 | `custom/claudebar` | `omarchy.agents` |
 | `tray`, `bluetooth`, `network`, `pulseaudio` | `omarchy.tray`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio` |
 | `battery`, `clock` | `omarchy.power`, `omarchy.clock` |
-| `cpu` | `cpu`, a custom command module (no native equivalent) |
+| `cpu` (a btop launcher) | `cpu`, a custom command module reading out CPU temperature and load |
 | `custom/vpn-mass`, `custom/vpn-sand` | `vpn-mass`, `vpn-sand`, custom command modules running `omarchy/bar/vpn` |
 
 The VPN script is `omarchy/bar/vpn`, which
@@ -106,6 +106,16 @@ class the bar reacts to (`Bar.qml`: `klass.indexOf("active")`) and it is what
 draws the widget lit, while the descriptive class stays readable for anything
 else. The glyphs are `\u` escapes rather than literal characters, since agent
 editing tools strip multi-byte codepoints in some positions.
+
+`omarchy/bar/cpu` is installed the same way and replaces what used to be a bare
+btop-launcher icon: it prints CPU temperature in celsius and load as a
+percentage. The sensor is located by hwmon *name* (`k10temp` on AMD, `coretemp`
+on Intel) rather than by path, because hwmon numbering is not stable across
+boots, and the package label (`Tctl` / `Tdie` / `Package id 0`) is preferred over
+the per-core inputs beside it. Load is a delta between runs, cached in
+`XDG_RUNTIME_DIR`: `/proc/stat` counts jiffies since boot, so one read says
+nothing about now, and caching means the figure covers the poll interval without
+the script having to sleep.
 
 **Bar width on the ultrawide.** waybar had `"width": 2560`, so on the 5120px AOC
 the bar covered the middle half. Quickshell has no width setting — the bar
@@ -291,9 +301,9 @@ line, collected here so it is findable.
   battery.
 - **A custom bar module needs no `exec`.** The command module renders
   `settings.text` when the command produces no output, and its timer only runs
-  when `exec` is non-empty — so a static icon with an `onClick` is a valid
-  module with no polling at all. That is what the `cpu` entry is: waybar's
-  `cpu` module was also icon-only, a btop launcher rather than a readout.
+  when `exec` is non-empty — so a static icon with an `onClick` is a valid module
+  with no polling at all. Nothing here uses that shape any more (`cpu` polls now),
+  but it is the cheap way to add a launcher button.
 - **Command modules with an `exec` add a burst of QML noise on every layout
   rebuild.** Each rebuild logs ~112 `QQmlVMEMetaObject: Internal error -
   attempted to evaluate a function in an invalid context` lines, immediately after

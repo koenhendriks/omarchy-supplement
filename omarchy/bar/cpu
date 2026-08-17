@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# CPU temperature and load for the Omarchy bar, printed as the Waybar-style JSON
+# that a `type: "command"` module understands.
+#
+# Usage is a delta between runs rather than a sampled average: /proc/stat holds
+# cumulative jiffies since boot, so a single read says nothing about *now*. The
+# previous totals are cached and each run reports the load since the last one,
+# which means the figure covers the module's poll interval and the script never
+# has to sleep. The cache lives in XDG_RUNTIME_DIR so it is per-boot and on tmpfs.
+#
+# The degree sign is written as a \u escape rather than a literal character:
+# agent file-editing tools strip multi-byte codepoints in some positions.
+
+STATE="${XDG_RUNTIME_DIR:-/tmp}/omarchy-supplement-cpu.state"
+
+# ---------------------------------------------------------------- temperature
+#
+# hwmon numbering is not stable across boots, so the sensor is found by name
+# rather than by path. k10temp is AMD, coretemp is Intel; within either, the
+# label that means "the whole package" is preferred over the per-core and
+# per-die inputs that sit beside it.
+cpu_temp_millidegrees() {
+    local hwmon name input label
+
+    for hwmon in /sys/class/hwmon/hwmon*; do
+        name=$(cat "$hwmon/name" 2>/dev/null) || continue
+        case "$name" in
+            k10temp | coretemp) ;;
+            *) continue ;;
+        esac
+
+        for input in "$hwmon"/temp*_input; do
+            [ -r "$input" ] || continue
+            label=$(cat "${input%_input}_label" 2>/dev/null)
+            case "$label" in
+                Tctl | Tdie | "Package id 0")
+                    cat "$input"
+                    return 0
+                    ;;
+            esac
+        done
+
+        # A sensor without the usual labels still beats reporting nothing.
+        for input in "$hwmon"/temp*_input; do
+            if [ -r "$input" ]; then
+                cat "$input"
+                return 0
+            fi
+        done
+    done
+
+    return 1
+}
+
+TEMP_MILLI=$(cpu_temp_millidegrees)
+
+if [ -n "$TEMP_MILLI" ]; then
+    # Rounded rather than truncated, so 47.9 reads as 48 and not 47.
+    TEMP_C=$(((TEMP_MILLI + 500) / 1000))
+    TEMP_TEXT="${TEMP_C}$(printf '\u00b0')C"
+else
+    TEMP_TEXT="--"
+fi
+
+# ----------------------------------------------------------------- cpu usage
+read -r _ user nice system idle iowait irq softirq steal _ </proc/stat
+TOTAL=$((user + nice + system + idle + iowait + irq + softirq + steal))
+IDLE=$((idle + iowait))
+
+USAGE_TEXT="--"
+if [ -r "$STATE" ]; then
+    read -r prev_total prev_idle <"$STATE" 2>/dev/null
+
+    if [ -n "$prev_total" ] && [ -n "$prev_idle" ]; then
+        delta_total=$((TOTAL - prev_total))
+        delta_idle=$((IDLE - prev_idle))
+
+        # A zero or negative delta means no tick has passed, or the cache
+        # outlived a reboot. Either way there is nothing to divide by.
+        if [ "$delta_total" -gt 0 ]; then
+            busy=$((delta_total - delta_idle))
+            [ "$busy" -lt 0 ] && busy=0
+            USAGE_TEXT="$(((100 * busy + delta_total / 2) / delta_total))%"
+        fi
+    fi
+fi
+
+printf '%s %s\n' "$TOTAL" "$IDLE" >"$STATE"
+
+# ------------------------------------------------------------------- output
+printf '{"text": "%s  %s", "class": ["cpu"], "tooltip": "CPU: %s, %s busy since the last sample"}\n' \
+    "$TEMP_TEXT" "$USAGE_TEXT" "$TEMP_TEXT" "$USAGE_TEXT"
