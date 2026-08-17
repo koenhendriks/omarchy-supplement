@@ -64,7 +64,6 @@ fi
 . ./install-strongswan.sh
 . ./install-vpn.sh
 . ./install-hyprland-overrides.sh
-. ./install-hypridle-config.sh
 . ./install-claude-waybar.sh
 . ./install-waybar-config.sh
 . ./install-mako-config.sh

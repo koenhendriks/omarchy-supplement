@@ -46,7 +46,6 @@ install down first, then add packages, then layer config on top.
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
-| `install-hypridle-config.sh` | Idle timings: screensaver 2.5 min, lock 30 min, suspend 40 min |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
@@ -82,20 +81,9 @@ and overrides afterwards, keeping the theme's colours while the anchor sticks.
 Only Omarchy's install-time `theme.sh` recreates that symlink, so this survives
 theme changes.
 
-**Hypridle** gets a longer leash than the stock 2.5 min screensaver / 5 min lock:
-the screensaver runs for 27.5 min, the screen locks at 30 min of idle, and the
-machine suspends at 40 min. `install-hypridle-config.sh` keeps Omarchy's
-`general{}` block verbatim — `lock_cmd`, `before_sleep_cmd` and `inhibit_sleep`
-are what make suspend safe, and are worth inheriting — and replaces only the
-listeners, as a marked block. The timings live in the script as three wall-clock
-constants; the timeouts in the file are derived from them.
-
-hypridle has no include mechanism that helps here. It does support `source =`, but
-listeners are purely additive: a sourced fragment can add a suspend listener and
-cannot raise the stock 5 min lock, which would then still fire. Hence the whole
-listener section is generated. **Editing the timings requires re-running
-`install-hypridle-config.sh`**, and so does an `omarchy refresh hypridle`, which
-puts the defaults back.
+**Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
+entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
+and stay at Omarchy's defaults.
 
 `style.css` is the exception: it has to keep Omarchy's rules and the theme
 `@import` that defines `@background`, so the fragment is merged in as a marked
@@ -144,26 +132,14 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
-- **The screensaver resets hypridle's idle timer.** `omarchy-launch-screensaver`
-  warps the cursor between monitors with `hyprctl dispatch focusmonitor`, and that
-  pointer motion counts as activity. So every listener that fires after it is
-  timed from the screensaver's own timeout, not from the start of idle — a lock
-  listener at 1800 s locks 32.5 min in, not 30. Omarchy's default config works
-  around it with a hardcoded "half + 2s margin" comment;
-  `install-hypridle-config.sh` subtracts the offset instead, so its three
-  constants can stay wall-clock. Locking does *not* reset the timer, which is why
-  the suspend listener can be timed from the same baseline.
 - **`omarchy-refresh-config` writes through a symlink.** It installs defaults with
   `cp -f`, which follows the destination symlink, so the waybar trick of pointing
-  `~/.config` at a file in this repo would have `omarchy refresh hypridle`
-  overwrite the repo copy rather than the one in `~/.config`. `hypridle.conf` is
-  therefore generated as a plain file. Worth remembering before symlinking any
-  other config that has an `omarchy refresh` for it.
+  `~/.config` at a file in this repo would have an `omarchy refresh` overwrite the
+  repo copy rather than the one in `~/.config`. Any config that has an
+  `omarchy refresh` for it should be generated as a plain file, not symlinked.
 - **`hypr/*.lua` is globbed into `hyprland.lua`.** `install-hyprland-overrides.sh`
   appends a `dofile()` line for every `.lua` in `hypr/`, so config for a *different*
-  hypr daemon cannot be parked there: a `listener{}` block reaching Hyprland is a
-  config error, not an idle timer. That is why the hypridle listeners are a heredoc
-  in the script instead of a file next to `bindings.lua`.
+  hypr daemon cannot be parked there — it all reaches Hyprland itself.
 - **`dofile()`, not `require()`, for the Hyprland Lua overrides.** Two reasons.
   `package.path` covers `~/.config/?.lua` and `$OMARCHY_PATH`, not this repo, so
   `require` cannot find these files without editing the path first. And
