@@ -45,21 +45,28 @@ install down first, then add packages, then layer config on top.
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
-| `install-hyprland-overrides.sh` | Adds `source =` lines for `hypr/*.conf` |
 | `install-hypridle-config.sh` | Idle timings: screensaver 2.5 min, lock 30 min, suspend 40 min |
+| `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
 | `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
-| `hypr/` | Hyprland override fragments (bindings, monitors, windows, input) |
+| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
 | `waybar/` | Full waybar config, VPN status script, style fragment |
 | `mako/` | Notification overrides layered on top of the current theme |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
 ## Config overrides
 
-**Hyprland** keeps its own config; the installer only appends a `source =` line
-per file in `hypr/`, so those fragments stay authoritative and Omarchy's defaults
-are never edited.
+**Hyprland** keeps its own config; the installer only appends a `dofile()` line
+per file in `hypr/` to `~/.config/hypr/hyprland.lua`, so those modules stay
+authoritative and Omarchy's defaults are never edited. They load last, after
+Omarchy's defaults and after `~/.config/hypr/*.lua`, so they win.
+
+Omarchy 4 (quattro) moved Hyprland from `.conf` to Lua. The overrides here use
+Omarchy's own helpers — `o.bind` for keys, `o.window` for window rules — rather
+than raw `hl.*` calls, so they keep the descriptions that
+`omarchy menu keybindings --print` renders and pick up whatever `o.bind` learns
+to do next.
 
 **Waybar** has no equivalent include mechanism for a whole config, so
 `config.jsonc` is symlinked over the existing one (the original is kept as
@@ -151,11 +158,36 @@ line, collected here so it is findable.
   overwrite the repo copy rather than the one in `~/.config`. `hypridle.conf` is
   therefore generated as a plain file. Worth remembering before symlinking any
   other config that has an `omarchy refresh` for it.
-- **`hypr/*.conf` is globbed into `hyprland.conf`.** `install-hyprland-overrides.sh`
-  appends a `source =` line for every `.conf` in `hypr/`, so config for a *different*
+- **`hypr/*.lua` is globbed into `hyprland.lua`.** `install-hyprland-overrides.sh`
+  appends a `dofile()` line for every `.lua` in `hypr/`, so config for a *different*
   hypr daemon cannot be parked there: a `listener{}` block reaching Hyprland is a
   config error, not an idle timer. That is why the hypridle listeners are a heredoc
-  in the script instead of a file next to `bindings.conf`.
+  in the script instead of a file next to `bindings.lua`.
+- **`dofile()`, not `require()`, for the Hyprland Lua overrides.** Two reasons.
+  `package.path` covers `~/.config/?.lua` and `$OMARCHY_PATH`, not this repo, so
+  `require` cannot find these files without editing the path first. And
+  `default/hypr/bootstrap.lua` only clears `package.loaded` for the `hypr.`,
+  `default.hypr.` and `omarchy.current.theme.` prefixes — a module required under
+  any other name would be served from cache and quietly ignore every edit until
+  Hyprland restarts. `dofile` re-reads the file on each `hyprctl reload`.
+- **Rebinding a media key means re-stating its options.** `hl.unbind` +
+  `o.bind` drops whatever `{ locked = true, repeating = true }` the Omarchy
+  default carried. Without `locked` the volume keys go dead on the lock screen,
+  and without `repeating` they fire once when held.
+- **`hyprctl configerrors` really does validate the Lua config.** It reports
+  unknown window-rule fields by name (`hl.window_rule: unknown field '...'`),
+  so a clean run after `hyprctl reload` is a genuine check that every rule name
+  survived the conversion, not just that the file parsed.
+- **`hyprctl workspacerules` does not print `layout`.** It shows `monitor` and
+  `default` and stops, so a per-workspace `layout = "master"` looks unset even
+  when it is working. Check the window geometry instead — under this config the
+  master window on DP-1 is ~2536px wide and centered, while `general:layout` is
+  still `dwindle`.
+- **Quattro dropped `omarchy-swayosd-client` and `satty`.** Volume feedback now
+  goes through `omarchy-audio-output-volume raise|lower`, and screenshot
+  annotation through `tensaku-edit` via `omarchy-capture-screenshot`. The
+  `ALT + SHIFT + 4` binding in `hypr/bindings.lua` still shells out to `satty`
+  and stays broken until satty is reinstalled or the binding is rewritten.
 - **strongSwan ignores the system CA store.** `update-ca-trust` is not enough:
   charon only trusts certificates in `/etc/swanctl/x509ca`. Without them the
   handshake fails with `no issuer certificate found` even though `trust list`

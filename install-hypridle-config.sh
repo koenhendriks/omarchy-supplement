@@ -54,7 +54,7 @@ if [ -z "$GENERAL" ]; then
 fi
 
 # The listeners are written out here rather than kept as a file in hypr/, because
-# install-hyprland-overrides.sh globs hypr/*.conf into hyprland.conf -- a
+# install-hyprland-overrides.sh globs hypr/*.lua into hyprland.lua -- a
 # listener{} block in there is a config error, not an idle timer.
 MERGED="$(mktemp)"
 
