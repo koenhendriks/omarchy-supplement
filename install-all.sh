@@ -68,6 +68,7 @@ fi
 . ./install-omarchy-notifications.sh
 . ./install-omarchy-clock.sh
 . ./install-omarchy-shell.sh
+. ./install-omarchy-notification-plugin.sh
 . ./enable-sshd.sh
 
 # Only turn it back off if this script turned it on. If it was already on, it is
