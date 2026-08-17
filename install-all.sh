@@ -64,6 +64,7 @@ fi
 . ./install-strongswan.sh
 . ./install-vpn.sh
 . ./install-hyprland-overrides.sh
+. ./install-omarchy-bar.sh
 . ./install-omarchy-shell.sh
 . ./install-claude-waybar.sh
 . ./install-waybar-config.sh

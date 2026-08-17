@@ -47,6 +47,7 @@ install down first, then add packages, then layer config on top.
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
+| `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
@@ -91,6 +92,26 @@ The mapping from the old waybar config:
 | `cpu` | `cpu`, a custom command module (no native equivalent) |
 
 `waybar/` is left in place but nothing reads it any more.
+
+**Bar width on the ultrawide.** waybar had `"width": 2560`, so on the 5120px AOC
+the bar covered the middle half. Quickshell has no width setting — the bar
+anchors left+right and fills the monitor — so `install-omarchy-bar.sh` clones the
+built-in bar into `~/.config/omarchy/plugins/<user>.bar` and adds one: a
+`maxWidth` property, set to 2560 via `bar.maxWidth` in `shell.json` (from
+`omarchy/shell-bar.json`). That centres the bar on DP-1 and leaves the 2560px
+Dell untouched.
+
+What it narrows is the bar's **content**, not its window: the window still spans
+the screen, paints nothing itself, and masks pointer input to the painted strip
+so the uncovered edges stay clickable. Insetting the window with margins is the
+obvious implementation and it breaks every panel — see the note below.
+
+The clone is **derived, never hand-edited**: every run rebuilds it from the
+packaged bar and re-applies the patches, so an `omarchy update` that improves the
+bar is picked up instead of frozen at the day it was cloned. Re-run
+`install-omarchy-bar.sh` after each `omarchy update`. If Omarchy reshapes the
+code the patches anchor to, the script refuses to write and restores the previous
+clone rather than leaving a broken bar.
 
 **Waybar** has no equivalent include mechanism for a whole config, so
 `config.jsonc` is symlinked over the existing one (the original is kept as
@@ -156,6 +177,42 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **Narrowing the bar *window* silently misplaces every panel.** Insetting the
+  bar's left/right layer-shell margins to centre a narrower bar looks perfect
+  until a panel is opened: `shell/Ui/PopupCard.qml` anchors popups to the bar
+  window and maps the widget's position into that window's coordinate space, so
+  each panel lands exactly `inset` px to the left of its own icon. Measured with
+  a 1280px inset: the bluetooth icon's underline at x=3712, its panel centred at
+  x=2432. `centerOnBar` widgets (clock, weather) hide the bug, because centring
+  on a bar that is itself centred looks right either way — so test with
+  bluetooth, network, or agents, never the clock. `PopupCard.qml` sits outside
+  the bar plugin and so cannot be patched from the clone, which is why the width
+  cap narrows the content and leaves the window alone.
+- **A cloned bar cannot load on stock Omarchy 4.0.0.** `omarchy plugin clone
+  omarchy.bar` reports success and switches `bar.id`, then the bar disappears
+  from every monitor with nothing printed. `Bar.qml` declares `omarchyPath`,
+  `barWidgetRegistry`, and `barConfig` as `required property`, and QML will not
+  instantiate a component whose required properties are unset — but
+  `shell.qml`'s `pluginBarLoader` sets `source:` and only injects them afterwards
+  in `onLoaded`, so the component is never built and `configureBar()`'s
+  `if (!target) return` makes it a no-op. `Bar.qml` is the only entry point doing
+  this; `menu/Menu.qml` and `notifications/Service.qml` declare the same
+  properties plain with defaults. `install-omarchy-bar.sh` relaxes them in the
+  clone, which is why the bar works here. Fix sent upstream; the patch is written
+  as optional so it turns into a no-op once it lands.
+- **A broken bar plugin fails silently, and takes the fallback with it.**
+  `shell.qml`'s `Loader.Error` handler reads `errorString`, which `Loader` does
+  not have. The `ReferenceError` aborts the handler before
+  `shell.failedBarId = shell.activeBarId`, so the fallback to the built-in bar
+  never runs. That is why the symptom is "no bar" rather than an error message —
+  worth knowing before debugging a bar that vanished. Recover with
+  `omarchy bar use omarchy.bar && omarchy restart shell`.
+- **A QML change needs `omarchy restart shell`, not a hot reload.** Saving a file
+  under `~/.config/omarchy/plugins/` logs `Local plugin changed, reloading` and
+  the shell keeps serving the previously compiled QML, so an edit looks like it
+  did nothing — the stale copy even reports errors against the *new* line
+  numbers, which makes it look like the edit did not save. `shell.json` genuinely
+  does hot-reload; QML does not.
 - **A Quickshell widget is "enabled" by being in the bar layout.** There is no
   separate on/off list: `omarchy plugin enable omarchy.media` just inserts
   `{"id": "omarchy.media"}` into `bar.layout` in `shell.json`, and

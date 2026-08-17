@@ -1,5 +1,6 @@
 {
   "centerAnchor": "omarchy.clock",
+  "maxWidth": 2560,
   "layout": {
     "left": [
       {
