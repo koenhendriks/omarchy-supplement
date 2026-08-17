@@ -1,0 +1,70 @@
+{
+  "centerAnchor": "omarchy.clock",
+  "layout": {
+    "left": [
+      {
+        "id": "omarchy.menu"
+      },
+      {
+        "id": "omarchy.workspaces"
+      },
+      {
+        "id": "omarchy.media"
+      }
+    ],
+    "center": [
+      {
+        "id": "omarchy.active-window"
+      },
+      {
+        "id": "omarchy.clock",
+        "format": "dddd HH:mm",
+        "formatAlt": "d MMMM 'W'ww yyyy",
+        "verticalFormat": "HH\n—\nmm"
+      },
+      {
+        "id": "omarchy.weather"
+      },
+      {
+        "id": "omarchy.system-update"
+      },
+      {
+        "id": "omarchy.keyboard-layout"
+      },
+      {
+        "id": "omarchy.indicators"
+      }
+    ],
+    "right": [
+      {
+        "id": "omarchy.agents"
+      },
+      {
+        "id": "omarchy.tray"
+      },
+      {
+        "id": "omarchy.bluetooth"
+      },
+      {
+        "id": "omarchy.network"
+      },
+      {
+        "id": "omarchy.audio"
+      },
+      {
+        "id": "omarchy.monitor"
+      },
+      {
+        "id": "cpu",
+        "type": "command",
+        "text": "󰍛",
+        "tooltip": "System monitor",
+        "onClick": "omarchy-launch-or-focus-tui btop",
+        "onRightClick": "omarchy-launch-terminal"
+      },
+      {
+        "id": "omarchy.power"
+      }
+    ]
+  }
+}

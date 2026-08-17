@@ -47,11 +47,13 @@ install down first, then add packages, then layer config on top.
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
+| `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
 | `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
-| `waybar/` | Full waybar config, VPN status script, style fragment |
+| `omarchy/` | Quickshell bar layout fragment merged into `shell.json` |
+| `waybar/` | Full waybar config, VPN status script, style fragment (unused) |
 | `mako/` | Notification overrides layered on top of the current theme |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
@@ -67,6 +69,28 @@ Omarchy's own helpers — `o.bind` for keys, `o.window` for window rules — rat
 than raw `hl.*` calls, so they keep the descriptions that
 `omarchy menu keybindings --print` renders and pick up whatever `o.bind` learns
 to do next.
+
+**The bar** is Quickshell now, not waybar: Omarchy 4 (quattro) replaced waybar
+with `omarchy-shell`, and most of what used to be a custom waybar module is a
+first-party widget. `omarchy/shell-bar.json` holds the wanted bar layout, and
+`install-omarchy-shell.sh` merges it into the `bar` key of
+`~/.config/omarchy/shell.json`, leaving `idle`, `plugins`, and `version` alone.
+
+The mapping from the old waybar config:
+
+| waybar | Quickshell |
+| --- | --- |
+| `custom/omarchy`, `hyprland/workspaces` | `omarchy.menu`, `omarchy.workspaces` |
+| `mpris` | `omarchy.media` |
+| `hyprland/window` | `omarchy.active-window` |
+| `custom/weather`, `custom/update` | `omarchy.weather`, `omarchy.system-update` |
+| `custom/voxtype`, `custom/screenrecording-indicator`, `custom/idle-indicator`, `custom/notification-silencing-indicator` | `omarchy.indicators` (Dictation, ScreenRecording, StayAwake, Dnd) |
+| `custom/claudebar` | `omarchy.agents` |
+| `tray`, `bluetooth`, `network`, `pulseaudio` | `omarchy.tray`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio` |
+| `battery`, `clock` | `omarchy.power`, `omarchy.clock` |
+| `cpu` | `cpu`, a custom command module (no native equivalent) |
+
+`waybar/` is left in place but nothing reads it any more.
 
 **Waybar** has no equivalent include mechanism for a whole config, so
 `config.jsonc` is symlinked over the existing one (the original is kept as
@@ -132,6 +156,33 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **A Quickshell widget is "enabled" by being in the bar layout.** There is no
+  separate on/off list: `omarchy plugin enable omarchy.media` just inserts
+  `{"id": "omarchy.media"}` into `bar.layout` in `shell.json`, and
+  `omarchy plugin list` reports anything absent from the layout as `disabled`.
+  So writing the layout is all it takes — but a widget missing from the layout
+  will not appear no matter what else is configured, which is why
+  `omarchy.media` and `omarchy.active-window` needed adding rather than just
+  moving. `omarchy.power` is the exception worth knowing: it is in the layout
+  and still draws nothing on a desktop, because it hides itself without a
+  battery.
+- **A custom bar module needs no `exec`.** The command module renders
+  `settings.text` when the command produces no output, and its timer only runs
+  when `exec` is non-empty — so a static icon with an `onClick` is a valid
+  module with no polling at all. That is what the `cpu` entry is: waybar's
+  `cpu` module was also icon-only, a btop launcher rather than a readout.
+- **Command modules log a harmless `moduleName` TypeError.** The bar's
+  `injectProps()` in `Bar.qml` assigns `bar`, `moduleName`, and `settings` into
+  every custom module, but the built-in `CustomCommandModule` declares
+  `moduleName` and `settings` as `readonly` and derives both from its own
+  `entry`. The assignment throws, which also skips the `settings` line after
+  it — and neither matters, because the component already has correct values.
+  Expect one `WARN ... Cannot assign to read-only property "moduleName"` per
+  module per monitor in `journalctl --user`.
+- **`omarchy.media` and `omarchy.active-window` show the same text while
+  browser media plays.** Not a duplicated widget: the MPRIS track and the
+  focused window title genuinely match when the focused window is the one
+  playing. Worth remembering before "fixing" it.
 - **`omarchy-refresh-config` writes through a symlink.** It installs defaults with
   `cp -f`, which follows the destination symlink, so the waybar trick of pointing
   `~/.config` at a file in this repo would have an `omarchy refresh` overwrite the
