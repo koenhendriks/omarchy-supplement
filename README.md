@@ -48,6 +48,7 @@ install down first, then add packages, then layer config on top.
 | `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
+| `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: toasts at top-centre |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
@@ -117,6 +118,20 @@ clone rather than leaving a broken bar.
 `config.jsonc` is symlinked over the existing one (the original is kept as
 `config.jsonc.bak`). Because it is a symlink, edits in this repo are live,
 just restart waybar and they apply.
+
+**Notifications** are Quickshell's now, not mako's, and they ship pinned to the
+top-right corner with no setting to move them (`Service.qml`: "Toasts are fixed
+to the top-right corner"). `install-omarchy-notifications.sh` clones the plugin
+and changes only the horizontal alignment, so toasts sit at top-centre the way
+mako's `anchor=top-center` put them. The top margin still comes from
+`popupPlacement()`, so a toast keeps clearing a top bar by the same clearance.
+
+Cloning a plugin whose kind is not a bar widget is enough to take over from the
+built-in one: the registry adds the source to `disabledPlugins` and records
+`cloneSourceRestores`, so exactly one notification service runs and disabling the
+clone brings the original back.
+
+**Mako** is no longer used. The section below is kept for the record.
 
 **Mako** notifications are centered along the top edge (`anchor=top-center`).
 Omarchy points `~/.config/mako/config` at the *current theme's* `mako.ini`, which
