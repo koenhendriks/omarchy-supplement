@@ -1,18 +1,18 @@
 ---
 name: supplement-dev
-description: Conventions and verification steps for developing the omarchy-supplement repo. Use when adding or changing any install-*.sh script, the hypr/ or waybar/ overrides, or the MassMarket (openvpn3) and Sandwave (strongSwan) VPN setup.
+description: Conventions and verification steps for developing the omarchy-supplement repo. Use when adding or changing any install-*.sh script, the hypr/ or omarchy/ overrides, or the MassMarket (openvpn3) and Sandwave (strongSwan) VPN setup.
 ---
 
 # Developing omarchy-supplement
 
-Personal Omarchy supplement: package installers, Hyprland and waybar overrides,
-and two work VPNs moved off NetworkManager.
+Personal Omarchy supplement: package installers, Hyprland (Lua) and Quickshell
+shell overrides, and two work VPNs moved off NetworkManager.
 
 ## Read first
 
 `README.md` has a section called **"Things that cost time to work out"**, and
 `vpn/README.md` covers the VPN conversions. Read the relevant one before changing
-VPN or waybar behaviour. Each entry there was expensive to discover and presents
+VPN or shell behaviour. Each entry there was expensive to discover and presents
 as a symptom that points somewhere else — a profile that "vanishes", a VPN that
 connects and then dies one log line later, a CA that `trust list` says is trusted
 but strongSwan rejects. Do not rediscover these from scratch.
@@ -22,7 +22,7 @@ comment at the line it explains.
 
 ## install-*.sh conventions
 
-Follow `install-hyprland-overrides.sh` and `install-waybar-config.sh` — they are
+Follow `install-hyprland-overrides.sh` and `install-omarchy-shell.sh` — they are
 the reference style.
 
 ```bash
@@ -69,9 +69,9 @@ Patterns already in use, prefer them over inventing new ones:
 - `grep -Fxq` before appending a line (`install-hyprland-overrides.sh`).
 - Back up to `*.bak` only when no backup exists, so the pristine original is
   never overwritten by a second run.
-- Replace a marked block rather than appending (`install-waybar-config.sh` does
-  this for `style.css`, and trims trailing blank lines so the no-op check stays
-  reliable).
+- Merge into an existing config rather than overwriting it
+  (`install-omarchy-shell.sh` replaces only the `bar` key of `shell.json`, leaving
+  `idle`, `plugins` and the bar's own drag-to-reorder writes alone).
 - `openvpn3` has no in-place profile edit: remove, then re-import.
 
 Verify by running the script twice and confirming the second run reports no
@@ -94,9 +94,9 @@ Do not report success on reasoning alone. What is actually runnable:
 | Change | Check |
 | --- | --- |
 | Any script | `bash -n script.sh`, then run it twice |
-| `waybar/config.jsonc` | Parse it with `//` comments and trailing commas stripped — it is JSONC, a plain JSON parser will reject valid input |
-| waybar restart | `pgrep -x waybar`, plus `journalctl --user` for CSS errors |
-| `vpn-status.sh` | Exercise all four states by actually connecting and disconnecting both VPNs |
+| `omarchy/shell-bar.json` | Parse it, then run the installer twice and confirm the second run reports no change |
+| A cloned shell plugin | `omarchy restart shell` (a hot reload serves stale compiled QML), then `hyprctl layers` for the surface and `journalctl --user` for QML errors |
+| `omarchy/bar/vpn` | Exercise all four states; stubbing `openvpn3`/`swanctl` on `PATH` covers the branches without raising a real tunnel |
 | MassMarket end to end | `ssh root@visp` — that host sits behind pushed route `185.175.200.0/22`, so it only resolves over the tunnel |
 | Sandwave | `swanctl --list-sas` shows `Sandwave: #N, ESTABLISHED` |
 
@@ -122,7 +122,8 @@ rather than merely accepted and stored.
 ## Do not
 
 - Reintroduce `nmcli` for either VPN. No NetworkManager VPN profiles exist.
-- Edit `~/.config/waybar/config.jsonc` — it is a symlink into this repo. Edit
-  `waybar/config.jsonc`.
+- Hand-edit `~/.config/omarchy/plugins/<user>.bar` or `<user>.notifications` — both
+  are derived clones, rebuilt from the packaged plugin on every installer run.
+  Change the patches in the installer instead.
 - Edit anything under `~/.local/share/omarchy/`. Overrides belong here.
 - Add Claude or Anthropic attribution to commits, MRs, or changelog entries.

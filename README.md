@@ -1,7 +1,7 @@
 # omarchy-supplement
 
 Personal additions on top of [Omarchy](https://omarchy.org): extra packages, a
-few Hyprland and waybar overrides, and two work VPNs moved off NetworkManager.
+few Hyprland and Quickshell overrides, and two work VPNs moved off NetworkManager.
 
 Everything is driven by small `install-*.sh` scripts. They are idempotent 
 and they write to `~/.config` and `/etc` rather than expecting you to
@@ -50,13 +50,8 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: toasts at top-centre |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
-| `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
-| `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
-| `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
-| `waybar/` | Full waybar config, VPN status script, style fragment (unused) |
-| `mako/` | Notification overrides layered on top of the current theme |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
 ## Config overrides
@@ -93,8 +88,7 @@ The mapping from the old waybar config:
 | `cpu` | `cpu`, a custom command module (no native equivalent) |
 | `custom/vpn-mass`, `custom/vpn-sand` | `vpn-mass`, `vpn-sand`, custom command modules running `omarchy/bar/vpn` |
 
-`waybar/` is left in place but nothing reads it any more, including its own
-`scripts/vpn-status.sh`. The live VPN script is `omarchy/bar/vpn`, which
+The VPN script is `omarchy/bar/vpn`, which
 `install-omarchy-shell.sh` copies to `~/.config/omarchy/bar/scripts/` where
 `shell.json` points at it. A **single click toggles** the tunnel — `vpn toggle
 <name>` connects when it is down and disconnects when it is up — rather than
@@ -132,11 +126,6 @@ bar is picked up instead of frozen at the day it was cloned. Re-run
 code the patches anchor to, the script refuses to write and restores the previous
 clone rather than leaving a broken bar.
 
-**Waybar** has no equivalent include mechanism for a whole config, so
-`config.jsonc` is symlinked over the existing one (the original is kept as
-`config.jsonc.bak`). Because it is a symlink, edits in this repo are live,
-just restart waybar and they apply.
-
 **Notifications** are Quickshell's now, not mako's, and they ship pinned to the
 top-right corner with no setting to move them (`Service.qml`: "Toasts are fixed
 to the top-right corner"). `install-omarchy-notifications.sh` clones the plugin
@@ -149,24 +138,9 @@ built-in one: the registry adds the source to `disabledPlugins` and records
 `cloneSourceRestores`, so exactly one notification service runs and disabling the
 clone brings the original back.
 
-**Mako** is no longer used. The section below is kept for the record.
-
-**Mako** notifications are centered along the top edge (`anchor=top-center`).
-Omarchy points `~/.config/mako/config` at the *current theme's* `mako.ini`, which
-`omarchy theme set` deletes and regenerates from a template — so editing that
-file loses the change on the next theme switch. `mako/config` here `include`s it
-and overrides afterwards, keeping the theme's colours while the anchor sticks.
-Only Omarchy's install-time `theme.sh` recreates that symlink, so this survives
-theme changes.
-
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
 and stay at Omarchy's defaults.
-
-`style.css` is the exception: it has to keep Omarchy's rules and the theme
-`@import` that defines `@background`, so the fragment is merged in as a marked
-block at the end of the file instead. **Editing `waybar/style.css` requires
-re-running `install-waybar-config.sh`.**
 
 ## VPNs
 
@@ -318,10 +292,12 @@ line, collected here so it is findable.
   focused window title genuinely match when the focused window is the one
   playing. Worth remembering before "fixing" it.
 - **`omarchy-refresh-config` writes through a symlink.** It installs defaults with
-  `cp -f`, which follows the destination symlink, so the waybar trick of pointing
-  `~/.config` at a file in this repo would have an `omarchy refresh` overwrite the
+  `cp -f`, which follows the destination symlink, so pointing a file under
+  `~/.config` at a copy in this repo would have an `omarchy refresh` overwrite the
   repo copy rather than the one in `~/.config`. Any config that has an
-  `omarchy refresh` for it should be generated as a plain file, not symlinked.
+  `omarchy refresh` for it must be installed as a plain file, not symlinked —
+  which is why `install-omarchy-shell.sh` copies `omarchy/bar/vpn` into place
+  instead of linking it.
 - **`hypr/*.lua` is globbed into `hyprland.lua`.** `install-hyprland-overrides.sh`
   appends a `dofile()` line for every `.lua` in `hypr/`, so config for a *different*
   hypr daemon cannot be parked there — it all reaches Hyprland itself.
