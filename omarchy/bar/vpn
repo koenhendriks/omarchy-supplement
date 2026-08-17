@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# The two work VPNs, for the Omarchy bar.
+#
+#   vpn status <name>   print Waybar-style JSON for a `type: "command"` module
+#   vpn toggle <name>   connect if down, disconnect if up
+#
+# Status and toggle live in one script on purpose: both have to decide whether a
+# VPN is up, and two copies of that check would eventually disagree -- a toggle
+# that thinks it is connecting while the bar shows connected is a confusing bug
+# to chase.
+#
+# Neither VPN is a NetworkManager connection any more and they use different
+# clients, so everything here branches on which one is asked about: MassMarket is
+# OpenVPN (openvpn3), Sandwave is IKEv2 (strongSwan). Both are queryable and
+# controllable without sudo -- see the note on /run/charon.vici's group in the
+# README.
+#
+# The glyphs are written as \u escapes rather than literal characters: agent
+# file-editing tools strip multi-byte codepoints in some positions, which is the
+# same reason Omarchy's own shell-dev guide warns against rewriting its widget
+# files wholesale.
+
+ACTION="$1"
+VPN_NAME="$2"
+
+# A session or SA can exist while still connecting, or after an auth failure, so
+# both checks require the established state rather than mere existence. A missing
+# client reads as disconnected rather than erroring: the VPN installers are
+# optional steps, and a bar widget is the wrong place to report their absence.
+openvpn3_connected() {
+    command -v openvpn3 >/dev/null || return 1
+    openvpn3 sessions-list 2>/dev/null | awk -v name="$1" '
+        /^ *Config name:/ { cfg = $3 }
+        /^ *Status:/ && cfg == name && /Client connected/ { found = 1 }
+        END { exit found ? 0 : 1 }
+    '
+}
+
+swanctl_connected() {
+    command -v swanctl >/dev/null || return 1
+    swanctl --list-sas 2>/dev/null | grep -qE "^$1: #[0-9]+, ESTABLISHED"
+}
+
+# The short label keeps two identical padlocks apart in the bar, the way waybar's
+# `format: "{} MM"` did.
+case "$VPN_NAME" in
+    MassMarket) LABEL="MM" ;;
+    Sandwave)   LABEL="SW" ;;
+    *)
+        echo "usage: ${0##*/} status|toggle MassMarket|Sandwave" >&2
+        exit 1
+        ;;
+esac
+
+connected() {
+    case "$1" in
+        MassMarket) openvpn3_connected "$1" ;;
+        Sandwave)   swanctl_connected "$1" ;;
+    esac
+}
+
+case "$ACTION" in
+    status)
+        # `class` is an array with "active" in it when connected, because "active"
+        # is the only class the bar reacts to (Bar.qml: `klass.indexOf("active")`)
+        # and it is what draws the widget lit. The descriptive class rides along
+        # for anything else reading this output.
+        if connected "$VPN_NAME"; then
+            printf '{"text": "\uf023 %s", "class": ["connected", "active"], "tooltip": "%s: connected\\nClick to disconnect"}\n' "$LABEL" "$VPN_NAME"
+        else
+            printf '{"text": "\uf09c %s", "class": ["disconnected"], "tooltip": "%s: disconnected\\nClick to connect"}\n' "$LABEL" "$VPN_NAME"
+        fi
+        ;;
+    toggle)
+        # Output goes nowhere useful -- the bar runs this fire-and-forget and the
+        # icon catches up on its next poll -- so the clients are kept quiet and
+        # the exit status carries the result.
+        if connected "$VPN_NAME"; then
+            case "$VPN_NAME" in
+                MassMarket) openvpn3 session-manage --config "$VPN_NAME" --disconnect >/dev/null 2>&1 ;;
+                Sandwave)   swanctl --terminate --ike "$VPN_NAME" >/dev/null 2>&1 ;;
+            esac
+        else
+            case "$VPN_NAME" in
+                MassMarket) openvpn3 session-start --config "$VPN_NAME" >/dev/null 2>&1 ;;
+                Sandwave)   swanctl --initiate --child "$VPN_NAME" >/dev/null 2>&1 ;;
+            esac
+        fi
+        ;;
+    *)
+        echo "usage: ${0##*/} status|toggle MassMarket|Sandwave" >&2
+        exit 1
+        ;;
+esac

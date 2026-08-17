@@ -54,7 +54,7 @@ install down first, then add packages, then layer config on top.
 | `install-waybar-config.sh` | Links `waybar/config.jsonc`, merges `waybar/style.css` |
 | `install-mako-config.sh` | Links `mako/config` over the theme's notification config |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
-| `omarchy/` | Quickshell bar layout fragment merged into `shell.json` |
+| `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
 | `waybar/` | Full waybar config, VPN status script, style fragment (unused) |
 | `mako/` | Notification overrides layered on top of the current theme |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
@@ -91,8 +91,26 @@ The mapping from the old waybar config:
 | `tray`, `bluetooth`, `network`, `pulseaudio` | `omarchy.tray`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio` |
 | `battery`, `clock` | `omarchy.power`, `omarchy.clock` |
 | `cpu` | `cpu`, a custom command module (no native equivalent) |
+| `custom/vpn-mass`, `custom/vpn-sand` | `vpn-mass`, `vpn-sand`, custom command modules running `omarchy/bar/vpn` |
 
-`waybar/` is left in place but nothing reads it any more.
+`waybar/` is left in place but nothing reads it any more, including its own
+`scripts/vpn-status.sh`. The live VPN script is `omarchy/bar/vpn`, which
+`install-omarchy-shell.sh` copies to `~/.config/omarchy/bar/scripts/` where
+`shell.json` points at it. A **single click toggles** the tunnel — `vpn toggle
+<name>` connects when it is down and disconnects when it is up — rather than
+waybar's left-to-connect / right-to-disconnect split.
+
+`status` and `toggle` are subcommands of one script deliberately: both have to
+decide whether a VPN is up, and two copies of that check would eventually
+disagree, giving a toggle that connects while the bar reads connected. There is a
+separate `~/.local/bin/vpn-toggle` predating this; it is left alone, but the bar
+does not use it, so the repo stays self-contained on a fresh clone.
+
+Its `class` is an array — `["connected", "active"]` — because `active` is the only
+class the bar reacts to (`Bar.qml`: `klass.indexOf("active")`) and it is what
+draws the widget lit, while the descriptive class stays readable for anything
+else. The glyphs are `\u` escapes rather than literal characters, since agent
+editing tools strip multi-byte codepoints in some positions.
 
 **Bar width on the ultrawide.** waybar had `"width": 2560`, so on the 5120px AOC
 the bar covered the middle half. Quickshell has no width setting — the bar
@@ -279,6 +297,14 @@ line, collected here so it is findable.
   when `exec` is non-empty — so a static icon with an `onClick` is a valid
   module with no polling at all. That is what the `cpu` entry is: waybar's
   `cpu` module was also icon-only, a btop launcher rather than a readout.
+- **Command modules with an `exec` add a burst of QML noise on every layout
+  rebuild.** Each rebuild logs ~112 `QQmlVMEMetaObject: Internal error -
+  attempted to evaluate a function in an invalid context` lines, immediately after
+  the `moduleName` TypeError below and from the same broken injection: the poll's
+  `onStreamFinished` fires against an instance the rebuild is tearing down.
+  Measured A/B — 112 with the two VPN modules present, 0 without. It is a
+  one-off per rebuild, not per poll (two 20s steady-state windows: zero), and the
+  widgets read correct state throughout. Noise, not breakage.
 - **Command modules log a harmless `moduleName` TypeError.** The bar's
   `injectProps()` in `Bar.qml` assigns `bar`, `moduleName`, and `settings` into
   every custom module, but the built-in `CustomCommandModule` declares

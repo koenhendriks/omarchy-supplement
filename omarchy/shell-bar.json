@@ -41,6 +41,22 @@
         "id": "omarchy.agents"
       },
       {
+        "id": "vpn-mass",
+        "type": "command",
+        "exec": "~/.config/omarchy/bar/scripts/vpn status MassMarket",
+        "interval": 5,
+        "onClick": "~/.config/omarchy/bar/scripts/vpn toggle MassMarket",
+        "tooltip": "MassMarket VPN - click to toggle"
+      },
+      {
+        "id": "vpn-sand",
+        "type": "command",
+        "exec": "~/.config/omarchy/bar/scripts/vpn status Sandwave",
+        "interval": 5,
+        "onClick": "~/.config/omarchy/bar/scripts/vpn toggle Sandwave",
+        "tooltip": "Sandwave VPN - click to toggle"
+      },
+      {
         "id": "omarchy.tray"
       },
       {

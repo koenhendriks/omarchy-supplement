@@ -4,6 +4,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BAR_FRAGMENT="$SCRIPT_DIR/omarchy/shell-bar.json"
+BAR_SCRIPTS_SRC="$SCRIPT_DIR/omarchy/bar"
+BAR_SCRIPTS_DIR="$HOME/.config/omarchy/bar/scripts"
 SHELL_CONFIG="$HOME/.config/omarchy/shell.json"
 SHELL_DEFAULT="/usr/share/omarchy/config/omarchy/shell.json"
 
@@ -21,6 +23,23 @@ fi
 if [ ! -d "$(dirname "$SHELL_CONFIG")" ]; then
     echo "Omarchy config directory not found at $(dirname "$SHELL_CONFIG")"
     exit 1
+fi
+
+# Scripts the bar's `type: "command"` modules exec, installed where shell.json
+# points at them. Copies rather than symlinks, for the same omarchy-refresh-config
+# reason as below.
+if [ -d "$BAR_SCRIPTS_SRC" ]; then
+    mkdir -p "$BAR_SCRIPTS_DIR"
+    for script in "$BAR_SCRIPTS_SRC"/*; do
+        [ -f "$script" ] || continue
+        target="$BAR_SCRIPTS_DIR/$(basename "$script")"
+        if cmp -s "$script" "$target"; then
+            echo "$(basename "$script") already up to date"
+        else
+            echo "Installing $(basename "$script") to $BAR_SCRIPTS_DIR"
+            install -m 755 "$script" "$target"
+        fi
+    done
 fi
 
 # Merge rather than overwrite. shell.json also holds idle timings and plugin
