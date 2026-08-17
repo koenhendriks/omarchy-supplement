@@ -192,6 +192,14 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **A bar with no background is `bar.transparent`, not a broken patch.** The bar
+  paints `Color.bar.background` unless `bar.transparent` is true in `shell.json`,
+  and that flag is easy to set by accident: `omarchy bar transparent toggle`, or a
+  double-left-click on empty centre-bar space. It looks exactly like the
+  width-capping patch having gone wrong, so check the flag first —
+  `omarchy bar transparent false` puts it back. `omarchy/shell-bar.json`
+  deliberately does not pin it, so the double-click gesture keeps working; the
+  cost is that a stray toggle survives until it is flipped back by hand.
 - **Narrowing the bar *window* silently misplaces every panel.** Insetting the
   bar's left/right layer-shell margins to centre a narrower bar looks perfect
   until a panel is opened: `shell/Ui/PopupCard.qml` anchors popups to the bar
@@ -213,8 +221,15 @@ line, collected here so it is findable.
   `if (!target) return` makes it a no-op. `Bar.qml` is the only entry point doing
   this; `menu/Menu.qml` and `notifications/Service.qml` declare the same
   properties plain with defaults. `install-omarchy-bar.sh` relaxes them in the
-  clone, which is why the bar works here. Fix sent upstream; the patch is written
-  as optional so it turns into a no-op once it lands.
+  clone, which is what makes the bar work here. Reported and fixed upstream
+  ([#7253](https://github.com/basecamp/omarchy/issues/7253),
+  [#7254](https://github.com/basecamp/omarchy/pull/7254)), but the accepted fix
+  supplies the properties at creation in `shell.qml` and leaves `required` in
+  `Bar.qml`. So it is a **local workaround to delete by hand** once that lands —
+  it will not lapse into a no-op, it will keep firing silently and pointlessly.
+  Check whether it can go with
+  `grep -A6 "id: pluginBarLoader" /usr/share/omarchy/shell/shell.qml`: a
+  `setSource()` with a properties map means the fix is in.
 - **A broken bar plugin fails silently, and takes the fallback with it.**
   `shell.qml`'s `Loader.Error` handler reads `errorString`, which `Loader` does
   not have. The `ReferenceError` aborts the handler before

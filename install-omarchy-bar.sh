@@ -121,32 +121,43 @@ def require(text, old, new, label):
     return text.replace(old, new)
 
 
-def optional(text, old, new, label):
-    """A patch that may already be upstream: tolerate it being gone."""
+def workaround(text, old, new, label):
+    """A local workaround, not a patch expected to become redundant on its own.
+    Tolerates the pattern being absent so a reshaped Bar.qml does not abort the
+    rebuild, but absence is not the expected outcome -- see the note below."""
     count = text.count(old)
     if count > 1:
         sys.exit("%s: expected at most 1 match, found %d" % (label, count))
     if count == 0:
-        print("  %s: already applied upstream, skipping" % label)
+        print("  %s: not declared required, nothing to relax" % label)
     return text.replace(old, new)
 
 
-# Omarchy's plugin contract says an entry point *accepts* the shell-injected
-# properties, and every other one (menu/Menu.qml, notifications/Service.qml)
-# declares them plain with defaults. Bar.qml alone marks three of them
-# `required`, and QML refuses to instantiate a component whose required
-# properties are unset -- so shell.qml's pluginBarLoader, which sets `source`
-# and injects afterwards in onLoaded, can never load a cloned bar. Relaxing
-# them here costs nothing: the host still injects the real values, and the
-# built-in bar path passes them declaratively either way.
-source = optional(
+# LOCAL WORKAROUND -- delete these three substitutions once
+# basecamp/omarchy#7254 has landed on this machine. Check with:
+#   grep -A6 "id: pluginBarLoader" /usr/share/omarchy/shell/shell.qml
+# If it calls setSource() with a properties map, the fix is in and these can go.
+#
+# Bar.qml marks three shell-injected properties `required`. QML refuses to
+# instantiate a component whose required properties are unset, and shell.qml's
+# pluginBarLoader sets `source` and only injects them afterwards in onLoaded --
+# so an unrelaxed clone cannot load at all. Relaxing them is what makes the clone
+# work here; the host still injects the real values, and the built-in bar path
+# passes them declaratively either way.
+#
+# The accepted upstream fix supplies the properties at creation in shell.qml and
+# leaves `required` in Bar.qml. So these substitutions will NOT lapse into no-ops
+# when it ships -- they will keep firing, silently and pointlessly, which is why
+# they need deleting rather than leaving to expire. The tolerance below is only
+# insurance against Bar.qml being reshaped.
+source = workaround(
     source,
     "  required property string omarchyPath",
     '  property string omarchyPath: Quickshell.env("OMARCHY_PATH")',
     "omarchyPath",
 )
-source = optional(source, "  required property var barWidgetRegistry", "  property var barWidgetRegistry: null", "barWidgetRegistry")
-source = optional(source, "  required property var barConfig", "  property var barConfig: null", "barConfig")
+source = workaround(source, "  required property var barWidgetRegistry", "  property var barWidgetRegistry: null", "barWidgetRegistry")
+source = workaround(source, "  required property var barConfig", "  property var barConfig: null", "barConfig")
 
 # The actual customisation: cap the bar's width and centre it, so the ultrawide
 # gets a 2560px bar instead of one stretched across all 5120px. Driven by
