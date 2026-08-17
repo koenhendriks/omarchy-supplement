@@ -50,6 +50,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: toasts at top-centre |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
+| `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the three plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
@@ -136,6 +137,14 @@ bar is picked up instead of frozen at the day it was cloned. Re-run
 `install-omarchy-bar.sh` after each `omarchy update`. If Omarchy reshapes the
 code the patches anchor to, the script refuses to write and restores the previous
 clone rather than leaving a broken bar.
+
+Three plugins are cloned this way — bar, notifications and clock — and the
+mechanics they share live in `lib/omarchy-plugin.sh`: staging the old copy outside
+the watched plugins directory, waiting for the shell's IPC before cloning,
+rolling back a failed patch, and the pid-checked restart. Each installer is then
+just its guards, its `omarchy plugin clone` call, and its own patch. Two bugs in
+that block had to be fixed three times before it was shared, which is the reason
+it is shared.
 
 **Notifications** are Quickshell's now, not mako's, and they ship pinned to the
 top-right corner with no setting to move them (`Service.qml`: "Toasts are fixed
