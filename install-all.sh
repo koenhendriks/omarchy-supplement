@@ -65,7 +65,6 @@ fi
 . ./install-vpn.sh
 . ./install-hyprland-overrides.sh
 . ./install-omarchy-bar.sh
-. ./install-omarchy-notifications.sh
 . ./install-omarchy-clock.sh
 . ./install-omarchy-shell.sh
 . ./install-omarchy-notification-plugin.sh

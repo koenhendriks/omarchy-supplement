@@ -48,10 +48,9 @@ install down first, then add packages, then layer config on top.
 | `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
-| `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: toasts at top-centre |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
-| `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the three plugin installers |
+| `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
@@ -154,7 +153,7 @@ bar is picked up instead of frozen at the day it was cloned. Re-run
 code the patches anchor to, the script refuses to write and restores the previous
 clone rather than leaving a broken bar.
 
-Three plugins are cloned this way — bar, notifications and clock — and the
+Two plugins are cloned this way — bar and clock — and the
 mechanics they share live in `lib/omarchy-plugin.sh`: staging the old copy outside
 the watched plugins directory, waiting for the shell's IPC before cloning,
 rolling back a failed patch, and the pid-checked restart. Each installer is then
@@ -162,17 +161,19 @@ just its guards, its `omarchy plugin clone` call, and its own patch. Two bugs in
 that block had to be fixed three times before it was shared, which is the reason
 it is shared.
 
-**Notifications** are Quickshell's now, not mako's, and they ship pinned to the
-top-right corner with no setting to move them (`Service.qml`: "Toasts are fixed
-to the top-right corner"). `install-omarchy-notifications.sh` clones the plugin
-and changes only the horizontal alignment, so toasts sit at top-centre the way
-mako's `anchor=top-center` put them. The top margin still comes from
-`popupPlacement()`, so a toast keeps clearing a top bar by the same clearance.
+**Notifications** are handled by a third-party plugin,
+[Shavanced/omarchy-notification-center-plugin](https://github.com/Shavanced/omarchy-notification-center-plugin),
+installed by `install-omarchy-notification-plugin.sh` and placed in the bar as
+`shavanced.notification-center`.
 
-Cloning a plugin whose kind is not a bar widget is enough to take over from the
-built-in one: the registry adds the source to `disabledPlugins` and records
-`cloneSourceRestores`, so exactly one notification service runs and disabling the
-clone brings the original back.
+It is a bar widget only and explicitly keeps using the first-party
+`omarchy.notifications` service, which matters: this repo used to clone that
+service to move toasts from the top-right to the top-centre, and a clone
+*displaces* its source. `shell.qml`'s `serviceFor()` is an exact-id lookup with no
+`clonedFrom` resolution, so `firstPartyServiceFor("omarchy.notifications")`
+returned null while the clone was active and the widget saw no live
+notifications, no history and no DND. The clone is gone, and toasts sit
+top-right again as Omarchy ships them.
 
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
@@ -223,7 +224,7 @@ line, collected here so it is findable.
 - **The notification "centre" is a toast replay, not a panel.**
   `omarchy-shell notifications showHistory` re-shows past notifications through
   the normal toast column (`Service.qml`'s `showRecentHistory`), so history appears
-  wherever toasts appear — top-centre here — and not anchored to whatever widget
+  wherever toasts appear — top-right by default — and not anchored to whatever widget
   opened it. Nothing to reposition per-widget; moving history means moving toasts.
 - **A Lua-registered layout is selected as `lua:<name>`, not `<name>`.**
   `hl.layout.register("custom_center", ...)` registers fine, and a workspace rule

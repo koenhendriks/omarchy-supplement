@@ -32,7 +32,7 @@
     ],
     "right": [
       {
-        "id": "omarchy.agents"
+        "id": "omarchy.tray"
       },
       {
         "id": "vpn-mass",
@@ -51,7 +51,7 @@
         "tooltip": "Sandwave VPN - click to toggle"
       },
       {
-        "id": "omarchy.tray"
+        "id": "omarchy.agents"
       },
       {
         "id": "omarchy.bluetooth"
@@ -72,12 +72,7 @@
         "interval": 5
       },
       {
-        "id": "notifications",
-        "type": "command",
-        "text": "󰂚",
-        "tooltip": "Notification history",
-        "onClick": "omarchy-shell notifications showHistory",
-        "onRightClick": "omarchy-shell notifications dismissAll"
+        "id": "shavanced.notification-center"
       },
       {
         "id": "omarchy.power"

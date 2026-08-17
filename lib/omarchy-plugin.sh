@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Shared by the install-omarchy-{bar,notifications,clock}.sh installers, each of
+# Shared by the install-omarchy-{bar,clock}.sh installers, each of
 # which rebuilds a derived clone of a first-party Omarchy shell plugin.
 #
 # Sourced, never executed: it defines variables and functions in the caller's
