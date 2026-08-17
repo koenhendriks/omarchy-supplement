@@ -185,6 +185,28 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **A Lua-registered layout is selected as `lua:<name>`, not `<name>`.**
+  `hl.layout.register("custom_center", ...)` registers fine, and a workspace rule
+  or `general:layout` set to the bare `custom_center` is accepted without a word
+  of complaint — `hyprctl getoption general:layout` even reports it back. It just
+  silently falls through to the default layout: `recalculate` is never called and
+  windows keep their dwindle geometry, which reads as "my layout code is broken"
+  rather than "the name never resolved". `hyprctl configerrors` stays clean and
+  the Hyprland log says nothing. The prefix is the whole fix, so
+  `hypr/monitors.lua` pins `lua:custom_center`. Load order does *not* matter — the
+  registry is consulted when laying out, so `custom-layout.lua` may be sourced
+  after the `monitors.lua` that references it.
+- **`o.bind` takes the description second.** `o.bind(keys, description,
+  dispatcher)`. Passing a dispatcher as the second argument leaves the real one
+  `nil` and Hyprland rejects the bind with `hl.bind: dispatcher must be a
+  dispatcher (e.g. hl.dsp.window.close()) or a lua function` — one error per call,
+  and the binding simply does not exist afterwards. The description is not
+  optional decoration: it is what `omarchy menu keybindings --print` and SUPER + K
+  list.
+- **`hyprctl keyword` is dead under the Lua parser.** It answers `keyword can't
+  work with non-legacy parsers. Use eval.` — `hyprctl eval 'hl.config({...})'`
+  replaces it. Note eval applies the value without re-selecting a layout, so a
+  layout change needs `hyprctl reload` to take effect.
 - **A bar with no background is `bar.transparent`, not a broken patch.** The bar
   paints `Color.bar.background` unless `bar.transparent` is true in `shell.json`,
   and that flag is easy to set by accident: `omarchy bar transparent toggle`, or a
