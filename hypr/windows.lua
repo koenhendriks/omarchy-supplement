@@ -33,14 +33,3 @@ for _, title in ipairs({
 }) do
   o.window({ title = title }, { float = true, persistent_size = true, stay_focused = false })
 end
-
--- zen-cal, opened from the bar: park it top-right, under the clock.
-o.window({ title = "^(.*zen-cal.*)$", class = "^(org\\.kde\\.konsole)$" }, {
-  float = true,
-  workspace = "current silent",
-  move = { "(monitor_w-1280-520)", "(monitor_h*0.03)" },
-  size = { "(monitor_w*0.1)", "(monitor_h*0.2)" },
-})
-
--- LazyVPN.
-o.window("org.lazyvpn", { float = true, center = true, size = { 900, 600 } })
