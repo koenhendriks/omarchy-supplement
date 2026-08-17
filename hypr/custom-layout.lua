@@ -5,15 +5,55 @@
 -- Registered as "custom_center" and selected per workspace in monitors.lua.
 -- Driven by the layoutmsg binds in bindings.lua: addmaster, removemaster,
 -- swapwithmaster and swapwithmaster2 all arrive through layout_msg below.
-local layout_state = {
-    masters = 1,
-    swap_address = nil,
-    swap_master_idx = 1, -- Tracks which master slot to swap into (1 = left, 2 = right, etc.)
-    window_order = {}
-}
+-- One state table per workspace, never one shared table.
+--
+-- recalculate() runs for every workspace using this layout, not just the visible
+-- one, and it drops from window_order any address it does not see in ctx.targets.
+-- Shared state therefore means laying out workspace 1 deletes workspace 2's whole
+-- order, and the next recalculate for workspace 2 rebuilds it from ctx.targets --
+-- silently discarding whatever was promoted with swapwithmaster. One notification
+-- is enough to trigger that round trip, so a window would jump into master with
+-- nobody touching the keyboard.
+--
+-- Keying by workspace also stops `masters` leaking: splitting the centre on one
+-- workspace used to split it on all of them.
+local states = {}
+
+local function state_for(ctx)
+    local key
+
+    for _, target in ipairs(ctx.targets) do
+        if target.window and target.window.workspace then
+            key = target.window.workspace.id or target.window.workspace.name
+            break
+        end
+    end
+
+    -- layout_msg can arrive with nothing tiled yet; fall back to whatever has focus.
+    if not key then
+        local active = hl.get_active_window()
+        if active and active.workspace then
+            key = active.workspace.id or active.workspace.name
+        end
+    end
+
+    key = key or "unknown"
+
+    if not states[key] then
+        states[key] = {
+            masters = 1,
+            swap_address = nil,
+            swap_master_idx = 1, -- Which master slot to swap into (1 = left, 2 = right, ...)
+            window_order = {}
+        }
+    end
+
+    return states[key]
+end
 
 hl.layout.register("custom_center", {
     recalculate = function(ctx)
+        local layout_state = state_for(ctx)
         local n = #ctx.targets
         if n == 0 then return end
         
@@ -156,6 +196,7 @@ hl.layout.register("custom_center", {
     
     -- Intercept layout commands dispatched by your keybinds
     layout_msg = function(ctx, msg)
+        local layout_state = state_for(ctx)
         local command = msg:match("^(%S+)")
         
         if command == "addmaster" then
