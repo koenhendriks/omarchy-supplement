@@ -45,6 +45,7 @@ install down first, then add packages, then layer config on top.
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
+| `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hypridle-config.sh` | Idle timings: screensaver 2.5 min, lock 30 min, suspend 40 min |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-claude-waybar.sh` | `claudebar`, the Claude usage waybar module |
@@ -184,10 +185,11 @@ line, collected here so it is findable.
   master window on DP-1 is ~2536px wide and centered, while `general:layout` is
   still `dwindle`.
 - **Quattro dropped `omarchy-swayosd-client` and `satty`.** Volume feedback now
-  goes through `omarchy-audio-output-volume raise|lower`, and screenshot
-  annotation through `tensaku-edit` via `omarchy-capture-screenshot`. The
-  `ALT + SHIFT + 4` binding in `hypr/bindings.lua` still shells out to `satty`
-  and stays broken until satty is reinstalled or the binding is rewritten.
+  goes through `omarchy-audio-output-volume raise|lower`. Screenshot annotation
+  moved to `tensaku-edit`, so satty is no longer pulled in by Omarchy — but the
+  `ALT + SHIFT + 4` binding still wants it, and `install-satty.sh` reinstalls it
+  from `extra`. It is a repo package, not an AUR one, despite having been dropped
+  from Omarchy's own dependencies.
 - **strongSwan ignores the system CA store.** `update-ca-trust` is not enough:
   charon only trusts certificates in `/etc/swanctl/x509ca`. Without them the
   handshake fails with `no issuer certificate found` even though `trust list`

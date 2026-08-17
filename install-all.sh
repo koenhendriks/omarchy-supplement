@@ -42,6 +42,7 @@ fi
 . ./install-lsof.sh
 . ./install-vlc.sh
 . ./install-vorbis-tools.sh
+. ./install-satty.sh
 . ./install-bitwarden.sh
 . ./install-phpstorm.sh
 . ./install-dev-laravel.sh

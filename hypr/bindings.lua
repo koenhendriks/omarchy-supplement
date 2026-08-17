@@ -16,8 +16,8 @@ o.bind("CTRL + ALT + T", "Terminal", { omarchy = "terminal" })
 
 -- Screenshot that always lands in the clipboard *and* on disk: satty's escape
 -- and enter actions are both overridden to save to both.
--- NOTE: quattro dropped satty for tensaku-edit, so this is broken until satty
--- is reinstalled. See "Things that cost time to work out" in the README.
+-- Quattro annotates with tensaku-edit and no longer pulls satty in;
+-- install-satty.sh puts it back.
 o.bind(
   "ALT + SHIFT + 4",
   "Screenshot region",
