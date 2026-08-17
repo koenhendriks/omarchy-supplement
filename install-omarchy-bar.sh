@@ -6,8 +6,65 @@ PACKAGED_BAR="/usr/share/omarchy/shell/plugins/bar"
 PLUGINS_DIR="$HOME/.config/omarchy/plugins"
 PLUGIN_ID="${USER:-$(id -un)}.bar"
 PLUGIN_DIR="$PLUGINS_DIR/$PLUGIN_ID"
-PREVIOUS_DIR="$PLUGIN_DIR.previous"
+# Staged OUTSIDE ~/.config/omarchy/plugins: the shell scans that directory, so a
+# copy parked there is picked up as a live plugin. It does not merely log
+# "Local plugin changed, reloading: <id>.previous" -- the shell instantiates the
+# staged Bar.qml/Service.qml, so the running UI can briefly come from the copy
+# being held for rollback.
+STAGING_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-supplement"
+PREVIOUS_DIR="$STAGING_DIR/$PLUGIN_ID.previous"
 SHELL_CONFIG="$HOME/.config/omarchy/shell.json"
+SHELL_MATCH="quickshell -n -p /usr/share/omarchy/shell"
+
+# `omarchy plugin clone` enables the clone over the shell's IPC socket, so it
+# needs a shell that is answering. Straight after a restart that can take a few
+# seconds longer than omarchy-restart-shell is willing to wait, and the clone
+# fails with "omarchy-shell is not running" if it goes first.
+wait_for_shell() {
+    local waited=0
+    while [ "$waited" -lt 40 ]; do
+        if omarchy-shell shell ping >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+    return 1
+}
+
+# Restart the shell without letting it decide this script's exit status.
+# `omarchy restart shell` only polls 2s for readiness and returns non-zero when
+# the shell is slower than that, which it intermittently is here. This file is
+# *sourced* by install-all.sh, so that non-zero under `set -e` would abort the
+# whole run, the same way the old hypridle script used to.
+#
+# A new pid is the only proof the QML was recompiled: a shell that was never
+# killed keeps serving the previously compiled files and answers `ping` perfectly
+# well while doing it. The initial sleep lets the kill and relaunch actually
+# happen, so a slow restart is not misread as a skipped one.
+restart_shell() {
+    local before after waited=0
+    before=" $(pgrep -f "$SHELL_MATCH" | tr '\n' ' ')"
+
+    echo "Restarting shell to load the rebuilt plugin"
+    omarchy restart shell >/dev/null 2>&1 || true
+    sleep 2
+
+    while [ "$waited" -lt 60 ]; do
+        after="$(pgrep -n -f "$SHELL_MATCH" || true)"
+        if [ -n "$after" ] && [ "${before/ $after / }" = "$before" ] &&
+            omarchy-shell shell ping >/dev/null 2>&1; then
+            echo "Shell restarted (pid $after)"
+            return 0
+        fi
+        sleep 0.5
+        waited=$((waited + 1))
+    done
+
+    echo "Warning: the shell did not restart within 30s, so it may still be"
+    echo "serving the previously compiled QML. The plugin is written correctly;"
+    echo "run 'omarchy restart shell' by hand to load it."
+}
 
 if [ ! -f "$PACKAGED_BAR/Bar.qml" ]; then
     echo "Omarchy's packaged bar not found at $PACKAGED_BAR/Bar.qml"
@@ -20,6 +77,7 @@ fi
 # frozen at whatever shipped the day it was first cloned.
 echo "Rebuilding $PLUGIN_ID from $PACKAGED_BAR"
 
+mkdir -p "$STAGING_DIR"
 rm -rf "$PREVIOUS_DIR"
 if [ -d "$PLUGIN_DIR" ]; then
     mv "$PLUGIN_DIR" "$PREVIOUS_DIR"
@@ -36,6 +94,11 @@ restore_previous() {
 # `omarchy plugin clone` refuses an existing target, hence the move above. It
 # also rewrites the manifest id and records clonedFrom, which keeps the built-in
 # widget ids working as IPC targets -- worth not reimplementing here.
+if ! wait_for_shell; then
+    echo "The Omarchy shell is not answering; start it and re-run this script"
+    exit 1
+fi
+
 if ! omarchy plugin clone omarchy.bar >/dev/null; then
     echo "Cloning omarchy.bar failed"
     restore_previous
@@ -199,7 +262,6 @@ rm -rf "$PREVIOUS_DIR"
 # holding a null `bar`. Only a full restart recompiles it. (A broken bar shows up
 # as *no bar* rather than an error, because shell.qml's fallback path throws
 # first, so this is worth being unconditional about.)
-echo "Restarting shell to recompile the bar QML"
-omarchy restart shell
+restart_shell
 
 echo "Omarchy bar setup complete!"

@@ -222,6 +222,27 @@ line, collected here so it is findable.
   never runs. That is why the symptom is "no bar" rather than an error message —
   worth knowing before debugging a bar that vanished. Recover with
   `omarchy bar use omarchy.bar && omarchy restart shell`.
+- **`omarchy restart shell` reports failure on a perfectly good restart.** It
+  kills the shell, relaunches it, then polls readiness for 20 × 0.1s — two
+  seconds. The shell needs a shade longer than that here, so it prints "Omarchy
+  shell did not become ready after restart." and exits non-zero while the shell
+  comes up fine moments later. In a script that `install-all.sh` *sources*, that
+  non-zero under `set -e` aborts the whole run, so the plugin installers call it
+  with `|| true` and wait for the shell themselves. They check for a **new pid**
+  rather than a successful `ping`: a shell that was never killed answers `ping`
+  quite happily while still serving the previously compiled QML.
+- **A spare copy left in `~/.config/omarchy/plugins/` gets loaded.** The shell
+  scans that directory, so staging the old clone as `<id>.previous` beside the
+  real one for rollback does not just log
+  `Local plugin changed, reloading: <id>.previous` — the shell *instantiates* the
+  staged `Bar.qml`, and the running bar can briefly come from the copy being held
+  in reserve. Both installers therefore stage into
+  `~/.cache/omarchy-supplement/` instead. Anything parked in the plugins dir is
+  live, including backups.
+- **`omarchy plugin clone` needs a shell that is answering.** It enables the clone
+  over the shell's IPC socket, so run straight after a restart it fails with
+  "omarchy-shell is not running". Both plugin installers wait for `shell ping`
+  before cloning.
 - **A QML change needs `omarchy restart shell`, not a hot reload.** Saving a file
   under `~/.config/omarchy/plugins/` logs `Local plugin changed, reloading` and
   the shell keeps serving the previously compiled QML, so an edit looks like it
