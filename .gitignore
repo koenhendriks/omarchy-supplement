@@ -2,3 +2,7 @@
 vpn/*.nmconnection
 vpn/certs/
 vpn/*.auth
+
+# Sublime per-user UI state (open files, undo and find history).
+# The .sublime-project alongside it is the shared project definition.
+*.sublime-workspace
