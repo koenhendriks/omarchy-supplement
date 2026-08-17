@@ -96,9 +96,10 @@ waybar's left-to-connect / right-to-disconnect split.
 
 `status` and `toggle` are subcommands of one script deliberately: both have to
 decide whether a VPN is up, and two copies of that check would eventually
-disagree, giving a toggle that connects while the bar reads connected. There is a
-separate `~/.local/bin/vpn-toggle` predating this; it is left alone, but the bar
-does not use it, so the repo stays self-contained on a fresh clone.
+disagree, giving a toggle that connects while the bar reads connected. A
+standalone `~/.local/bin/vpn-toggle` used to hold the toggle half; its logic was
+absorbed here and the script removed, so the bar has no dependency outside a
+fresh clone of this repo.
 
 Its `class` is an array — `["connected", "active"]` — because `active` is the only
 class the bar reacts to (`Bar.qml`: `klass.indexOf("active")`) and it is what
