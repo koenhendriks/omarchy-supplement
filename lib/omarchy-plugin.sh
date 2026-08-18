@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Shared by the install-omarchy-{bar,clock}.sh installers, each of
-# which rebuilds a derived clone of a first-party Omarchy shell plugin.
+# Shared by the install-omarchy-*.sh plugin installers. Most of it serves the
+# ones that rebuild a derived clone of a first-party Omarchy shell plugin; the
+# git-sourced plugins use only plugin_init() for the paths and restart_shell()
+# after patching what they cloned.
 #
 # Sourced, never executed: it defines variables and functions in the caller's
 # shell, and install-all.sh already sources those callers. Nothing here runs on

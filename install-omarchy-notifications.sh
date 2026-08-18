@@ -7,6 +7,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PACKAGED_PLUGIN="/usr/share/omarchy/shell/plugins/notifications"
 
+# Apps that never get to put a toast on screen. Matched case-insensitively
+# against the freedesktop `app_name`, which is the string history files under
+# ~/.local/state/omarchy/notifications/history record as `app`.
+#
+# Nextcloud is here because its desktop client re-announces every sync failure
+# and has no setting that stops it: every notification toggle in nextcloud.cfg
+# is already off and the "Sync Activity" error toasts still arrive, while the
+# same message is already sitting in the client's own activity list.
+MUTED_APPS=("Nextcloud")
+
 plugin_init "${USER:-$(id -un)}.notifications"
 plugin_require_packaged "$PACKAGED_PLUGIN/Service.qml" || exit 1
 
@@ -25,12 +35,14 @@ if ! omarchy plugin clone omarchy.notifications >/dev/null; then
     exit 1
 fi
 
-if ! python3 - "$PLUGIN_DIR/Service.qml" <<'PY'; then
+if ! python3 - "$PLUGIN_DIR/Service.qml" "${MUTED_APPS[@]}" <<'PY'; then
+import json
 import pathlib
 import sys
 
 path = pathlib.Path(sys.argv[1])
-source = path.read_text()
+source = path.read_text(encoding="utf-8")
+muted = json.dumps(sorted(set(app.lower() for app in sys.argv[2:])))
 
 
 def require(text, old, new, label):
@@ -79,7 +91,39 @@ source = require(
     "card anchor",
 )
 
-path.write_text(source)
+# There is no per-app mute in the shell -- notifications.json holds a single
+# `dnd` boolean and nothing else -- so the filter has to go in the service, at
+# the one point every notification passes through.
+source = require(
+    source,
+    """  function handleNotification(notification) {""",
+    """  // Apps whose toasts are dropped on arrival. Lower-cased by the installer
+  // that writes this list, so the lookup below stays a plain comparison.
+  readonly property var mutedApps: %s
+
+  function isMuted(notification) {
+    return mutedApps.indexOf(String(notification.appName || "").toLowerCase()) !== -1
+  }
+
+  function handleNotification(notification) {""" % muted,
+    "muted app list",
+)
+
+# Muted apps reuse the DND branch rather than getting one of their own: the
+# wanted behaviour is identical (no toast, but a history entry, so the
+# notification centre can still be scrolled back through), and isEphemeral()
+# already decides which of those are worth recording at all.
+source = require(
+    source,
+    """    if (service.doNotDisturb && !shouldBypassDnd(notification)) {""",
+    """    // A muted app takes the same route, whatever its urgency: shouldBypassDnd()
+    // exists so a critical chat message can still cut through DND, and nothing
+    // should let a muted app cut through a mute.
+    if (service.isMuted(notification) || (service.doNotDisturb && !shouldBypassDnd(notification))) {""",
+    "muted app filter",
+)
+
+path.write_text(source, encoding="utf-8")
 PY
     echo "Patching $PLUGIN_ID failed; the packaged plugin's shape must have changed"
     restore_previous

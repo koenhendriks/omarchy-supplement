@@ -48,8 +48,10 @@ install down first, then add packages, then layer config on top.
 | `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
+| `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
+| `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
@@ -161,19 +163,29 @@ just its guards, its `omarchy plugin clone` call, and its own patch. Two bugs in
 that block had to be fixed three times before it was shared, which is the reason
 it is shared.
 
-**Notifications** are handled by a third-party plugin,
+**Notifications** come from two pieces that have to be installed together.
+
+`install-omarchy-notifications.sh` rebuilds `<user>.notifications`, a clone of the
+first-party service, with two patches. The first moves toasts from the top-right
+corner, where `Service.qml` hardcodes them, to the top centre. The second adds a
+`mutedApps` list, because the shell has no per-app mute at all — `notifications.json`
+holds a single `dnd` boolean and nothing else. A muted app is routed down the
+existing DND branch: no toast, but still a history entry, so the notification
+centre can be scrolled back through. The list is `MUTED_APPS` at the top of the
+installer, matched case-insensitively against the freedesktop `app_name`.
+
+`Nextcloud` is on it. Its desktop client re-announces every sync failure and has
+no setting that stops it: every notification toggle in `nextcloud.cfg` is already
+off and the `Sync Activity` error toasts still arrive, while the same message is
+already sitting in the client's own activity list.
+
+The notification centre itself is a third-party bar widget,
 [Shavanced/omarchy-notification-center-plugin](https://github.com/Shavanced/omarchy-notification-center-plugin),
 installed by `install-omarchy-notification-plugin.sh` and placed in the bar as
-`shavanced.notification-center`.
-
-It is a bar widget only and explicitly keeps using the first-party
-`omarchy.notifications` service, which matters: this repo used to clone that
-service to move toasts from the top-right to the top-centre, and a clone
-*displaces* its source. `shell.qml`'s `serviceFor()` is an exact-id lookup with no
-`clonedFrom` resolution, so `firstPartyServiceFor("omarchy.notifications")`
-returned null while the clone was active and the widget saw no live
-notifications, no history and no DND. The clone is gone, and toasts sit
-top-right again as Omarchy ships them.
+`shavanced.notification-center`. It ships asking for the first-party service by
+name, which the clone displaces, so the installer patches that lookup to go
+through `resolveEnabledId()` — see below. Without that patch the two cannot
+coexist and the widget silently shows nothing.
 
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
@@ -221,6 +233,30 @@ line, collected here so it is findable.
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
   parsed and then ignored, only `config-manage --allow-compression asym` works.
+- **`serviceFor()` is an exact-id lookup, so a cloned service is invisible to
+  anything that asks for the original by name.** Cloning a plugin with a
+  non-widget kind adds the source to `disabledPlugins`, which is what keeps a
+  single notification daemon on the bus — but `shell.qml`'s `serviceFor()` does no
+  `clonedFrom` resolution, so `firstPartyServiceFor("omarchy.notifications")`
+  returns null for as long as `<user>.notifications` is the live implementation.
+  The third-party notification centre then renders an empty popup: no live list,
+  no history, no DND, and nothing in the journal to say why, because a null there
+  is a perfectly legal binding result. `PluginRegistry.resolveEnabledId()` is the
+  resolution `serviceFor()` lacks — it maps a built-in id onto whichever enabled
+  plugin declares `clonedFrom` it and returns the id unchanged when none does —
+  and `install-omarchy-notification-plugin.sh` patches the widget to go through
+  it. Anything else that looks a first-party service up by name has the same hole.
+- **There is no per-app mute anywhere in the shell.** `notifications.json` is
+  `{version, dnd}` and that is the whole of it; the only per-app list in
+  `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and
+  `omarchy-action`, and it decides recording, not display. Muting one noisy app
+  means patching the service, which means cloning it — hence the hole above.
+- **`omarchy plugin add` exits non-zero on a plugin it already has.** It fails
+  with "plugin '<id>' is already installed; update it with: omarchy plugin
+  update". The installers here are *sourced*, so an unguarded `omarchy plugin
+  add` aborts the entire `install-all.sh` run on its second pass — and it aborts
+  at the plugin step, so everything after it is skipped too. Both third-party
+  plugin installers check for the directory first.
 - **The notification "centre" is a toast replay, not a panel.**
   `omarchy-shell notifications showHistory` re-shows past notifications through
   the normal toast column (`Service.qml`'s `showRecentHistory`), so history appears
