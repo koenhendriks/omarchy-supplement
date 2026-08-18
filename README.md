@@ -35,6 +35,7 @@ install down first, then add packages, then layer config on top.
 | `install-bind.sh` | `bind`, for `dig` and friends |
 | `install-bitwarden.sh` | Bitwarden desktop and CLI |
 | `install-phpstorm.sh` | PhpStorm and its bundled JRE |
+| `install-nextcloud.sh` | Nextcloud client, plus sync exclusions for agent scratch and lock files |
 | `install-glab.sh` | GitLab CLI |
 | `install-teams.sh` | Teams for Linux |
 | `install-outlook.sh` | Outlook as an Omarchy webapp |
@@ -178,6 +179,17 @@ installer, matched case-insensitively against the freedesktop `app_name`.
 no setting that stops it: every notification toggle in `nextcloud.cfg` is already
 off and the `Sync Activity` error toasts still arrive, while the same message is
 already sitting in the client's own activity list.
+
+That mute is the symptom half. The cause half is in `install-nextcloud.sh`, which
+appends sync exclusions for the files that fail: `$HOME` itself is the sync root
+(account 0 syncs `/home/koen` to `/omarchy`), so agent scratch directories and
+lock files are created and deleted again inside a single sync run, and the client
+reports each one as an error. The patterns are appended line by line, guarded by
+`grep -Fxq`, because the file also carries hand-added entries and the client loads
+`/etc/Nextcloud/sync-exclude.lst` alongside it — this file is a supplement to the
+shipped list, not a replacement for it, and does not need a copy of its contents.
+Excluding a path stops the client updating what is already on the server; it does
+not delete it. The client has to be restarted to pick the patterns up.
 
 The notification centre itself is a third-party bar widget,
 [Shavanced/omarchy-notification-center-plugin](https://github.com/Shavanced/omarchy-notification-center-plugin),
