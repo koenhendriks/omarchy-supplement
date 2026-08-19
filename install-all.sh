@@ -40,11 +40,14 @@ fi
 . ./install-screensaver.sh
 . ./install-bind.sh
 . ./install-lsof.sh
+. ./install-nano.sh
 . ./install-vlc.sh
 . ./install-vorbis-tools.sh
 . ./install-satty.sh
 . ./install-bitwarden.sh
+. ./install-1password.sh
 . ./install-phpstorm.sh
+. ./install-sublime-text.sh
 . ./install-dev-laravel.sh
 . ./install-php-pie.sh
 . ./install-php-extensions.sh

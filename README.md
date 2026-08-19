@@ -33,8 +33,11 @@ install down first, then add packages, then layer config on top.
 | `remove-webapps.sh` | Clears every Omarchy webapp |
 | `remove-preinstalled.sh` | Drops preinstalled apps not wanted here (obsidian, libreoffice, signal, …) |
 | `install-bind.sh` | `bind`, for `dig` and friends |
+| `install-nano.sh` | nano, which Omarchy does not ship |
 | `install-bitwarden.sh` | Bitwarden desktop and CLI |
+| `install-1password.sh` | 1Password desktop and CLI |
 | `install-phpstorm.sh` | PhpStorm and its bundled JRE |
+| `install-sublime-text.sh` | Sublime Text 4 |
 | `install-nextcloud.sh` | Nextcloud client, plus sync exclusions for agent scratch and lock files |
 | `install-glab.sh` | GitLab CLI |
 | `install-teams.sh` | Teams for Linux |
