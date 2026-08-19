@@ -68,6 +68,13 @@ per file in `hypr/` to `~/.config/hypr/hyprland.lua`, so those modules stay
 authoritative and Omarchy's defaults are never edited. They load last, after
 Omarchy's defaults and after `~/.config/hypr/*.lua`, so they win.
 
+`hypr/monitors.lua` is the one override that differs per machine: it branches on
+whether an `eDP-1` connector is present, giving the XPS 15's internal panel plain
+dwindle on workspaces 1-10, and the desktop its ultrawide + Dell arrangement with
+`custom_center` on workspaces 1-5. The branch is not cosmetic -- a workspace rule
+applies wherever the workspace lands, so without it the ultrawide's layout also
+lands on the laptop's panel. See the note below.
+
 Omarchy 4 (quattro) moved Hyprland from `.conf` to Lua. The overrides here use
 Omarchy's own helpers — `o.bind` for keys, `o.window` for window rules — rather
 than raw `hl.*` calls, so they keep the descriptions that
@@ -433,9 +440,26 @@ line, collected here so it is findable.
   survived the conversion, not just that the file parsed.
 - **`hyprctl workspacerules` does not print `layout`.** It shows `monitor` and
   `default` and stops, so a per-workspace `layout = "master"` looks unset even
-  when it is working. Check the window geometry instead — under this config the
+  when it is working. The layout a workspace actually ended up with is in
+  `hyprctl workspaces -j` as `tiledLayout` — the direct answer, and it reports
+  `dwindle` for a workspace whose rule never resolved just as plainly as for one
+  that asked for dwindle, which is what makes the `lua:` prefix trap above
+  survivable. Window geometry is the fallback: under the desktop config the
   master window on DP-1 is ~2536px wide and centered, while `general:layout` is
   still `dwindle`.
+- **A workspace rule's `layout` applies even when the monitor it names is
+  absent.** `monitor = "DP-1"` is a preference for where the workspace opens, not
+  a condition on the rest of the rule, so `layout = "lua:custom_center"` on
+  workspaces 1-5 followed this config onto a laptop that has no DP-1 at all: the
+  workspaces fell back to `eDP-1` and took the ultrawide's centre-master layout
+  with them. There is no per-monitor layout setting to express this properly
+  (which is why the workspace ranges exist), so `hypr/monitors.lua` picks the
+  machine first and emits only that machine's rules. It reads
+  `/sys/class/drm/card*-eDP-1/status` to decide, because the kernel has that
+  populated before Hyprland starts, unlike `hl.get_monitors()`, whose contents at
+  config-parse time cannot be checked without restarting the session. Card
+  numbering is not stable across boots, so the check loops over card indices
+  rather than hardcoding `card2`.
 - **Quattro dropped `omarchy-swayosd-client` and `satty`.** Volume feedback now
   goes through `omarchy-audio-output-volume raise|lower`. Screenshot annotation
   moved to `tensaku-edit`, so satty is no longer pulled in by Omarchy — but the
