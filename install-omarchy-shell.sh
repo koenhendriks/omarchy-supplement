@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BAR_FRAGMENT="$SCRIPT_DIR/omarchy/shell-bar.json"
 BAR_SCRIPTS_SRC="$SCRIPT_DIR/omarchy/bar"
 BAR_SCRIPTS_DIR="$HOME/.config/omarchy/bar/scripts"
+LOCAL_BIN="$HOME/.local/bin"
 SHELL_CONFIG="$HOME/.config/omarchy/shell.json"
 SHELL_DEFAULT="/usr/share/omarchy/config/omarchy/shell.json"
 
@@ -25,6 +26,18 @@ if [ ! -d "$(dirname "$SHELL_CONFIG")" ]; then
     exit 1
 fi
 
+install_bar_script() {
+    local src="$1"
+    local target="$2"
+
+    if cmp -s "$src" "$target"; then
+        echo "$(basename "$src") already up to date in $(dirname "$target")"
+    else
+        echo "Installing $(basename "$src") to $(dirname "$target")"
+        install -m 755 "$src" "$target"
+    fi
+}
+
 # Scripts the bar's `type: "command"` modules exec, installed where shell.json
 # points at them. Copies rather than symlinks, for the same omarchy-refresh-config
 # reason as below.
@@ -32,14 +45,18 @@ if [ -d "$BAR_SCRIPTS_SRC" ]; then
     mkdir -p "$BAR_SCRIPTS_DIR"
     for script in "$BAR_SCRIPTS_SRC"/*; do
         [ -f "$script" ] || continue
-        target="$BAR_SCRIPTS_DIR/$(basename "$script")"
-        if cmp -s "$script" "$target"; then
-            echo "$(basename "$script") already up to date"
-        else
-            echo "Installing $(basename "$script") to $BAR_SCRIPTS_DIR"
-            install -m 755 "$script" "$target"
-        fi
+        install_bar_script "$script" "$BAR_SCRIPTS_DIR/$(basename "$script")"
     done
+fi
+
+# The VPN toggle is worth having outside the bar -- a Stream Deck key, a
+# keybinding, a script -- so it goes on PATH as `vpn` too. A second copy rather
+# than a symlink into ~/.config: anything calling it from PATH should not break
+# when the bar's script directory is rebuilt or reset, and both copies are
+# written from this one source on every run, so they cannot drift.
+if [ -f "$BAR_SCRIPTS_SRC/vpn" ]; then
+    mkdir -p "$LOCAL_BIN"
+    install_bar_script "$BAR_SCRIPTS_SRC/vpn" "$LOCAL_BIN/vpn"
 fi
 
 # Merge rather than overwrite. shell.json also holds idle timings and plugin

@@ -54,7 +54,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
-| `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout |
+| `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
@@ -108,12 +108,24 @@ The VPN script is `omarchy/bar/vpn`, which
 <name>` connects when it is down and disconnects when it is up — rather than
 waybar's left-to-connect / right-to-disconnect split.
 
+The same installer drops a second copy at `~/.local/bin/vpn`, so anything other
+than the bar can drive the tunnels — a Stream Deck key, a Hyprland binding, a
+script:
+
+    vpn toggle MassMarket
+    vpn status Sandwave
+
+Two copies rather than a symlink into `~/.config`, so a caller on `PATH` keeps
+working when the bar's script directory is rebuilt or reset; both are written from
+`omarchy/bar/vpn` on every installer run, so they cannot drift.
+
 `status` and `toggle` are subcommands of one script deliberately: both have to
 decide whether a VPN is up, and two copies of that check would eventually
 disagree, giving a toggle that connects while the bar reads connected. A
 standalone `~/.local/bin/vpn-toggle` used to hold the toggle half; its logic was
-absorbed here and the script removed, so the bar has no dependency outside a
-fresh clone of this repo.
+absorbed here and that script removed, so the bar has no dependency outside a
+fresh clone of this repo — the `vpn` on `PATH` is the same file, not a second
+implementation.
 
 Its `class` is an array — `["connected", "active"]` — because `active` is the only
 class the bar reacts to (`Bar.qml`: `klass.indexOf("active")`) and it is what
