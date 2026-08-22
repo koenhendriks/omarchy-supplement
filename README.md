@@ -43,6 +43,7 @@ install down first, then add packages, then layer config on top.
 | `install-teams.sh` | Teams for Linux |
 | `install-outlook.sh` | Outlook as an Omarchy webapp |
 | `install-yaak.sh` | Yaak, with a WebKitGTK workaround in its desktop entry |
+| `install-wifiman.sh` | WifiMan Desktop, with the same WebKitGTK workaround |
 | `install-opendeck.sh` | OpenDeck (Stream Deck), plus a udev reload the pacman hook misses |
 | `install-chrome-profiles.sh` | Per-profile Chrome launchers (`koen`, `yourhosting`) |
 | `install-le-ca.sh` | Let's Encrypt roots into the system trust store |
