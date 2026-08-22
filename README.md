@@ -80,7 +80,9 @@ Omarchy 4 (quattro) moved Hyprland from `.conf` to Lua. The overrides here use
 Omarchy's own helpers — `o.bind` for keys, `o.window` for window rules — rather
 than raw `hl.*` calls, so they keep the descriptions that
 `omarchy menu keybindings --print` renders and pick up whatever `o.bind` learns
-to do next.
+to do next. Input is the exception: `follow_mouse`, the plain Caps Lock and the
+three- and four-finger workspace swipes in `hypr/input.lua` have no `o.*`
+wrapper, so they go through `hl.config` and `hl.gesture` directly.
 
 **The bar** is Quickshell now, not waybar: Omarchy 4 (quattro) replaced waybar
 with `omarchy-shell`, and most of what used to be a custom waybar module is a
@@ -443,6 +445,16 @@ line, collected here so it is findable.
   `default.hypr.` and `omarchy.current.theme.` prefixes — a module required under
   any other name would be served from cache and quietly ignore every edit until
   Hyprland restarts. `dofile` re-reads the file on each `hyprctl reload`.
+- **Trackpad gestures are `hl.gesture`, not a `gestures:` option.** The old
+  `gestures:workspace_swipe = true` switch is gone — `hyprctl getoption
+  gestures:workspace_swipe` answers `no such option`, which reads like the
+  feature was dropped rather than moved. Since 0.55 each gesture is declared
+  individually (`hl.gesture({ fingers = 3, direction = "horizontal", action =
+  "workspace" })`) and the surviving `gestures:workspace_swipe_*` options only
+  tune how the declared swipe behaves. One consequence of per-gesture
+  declaration: a swipe on a different finger count is a separate registration,
+  so covering both three and four fingers means two `hl.gesture` calls. Anything
+  written for a pre-0.55 config, including most search results, is wrong here.
 - **Rebinding a media key means re-stating its options.** `hl.unbind` +
   `o.bind` drops whatever `{ locked = true, repeating = true }` the Omarchy
   default carried. Without `locked` the volume keys go dead on the lock screen,
