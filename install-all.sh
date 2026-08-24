@@ -32,7 +32,6 @@ fi
 # Install all packages in order
 . ./copy-resources.sh
 . ./install-snap-pac.sh
-. ./install-xwaylandvideobridge.sh
 . ./install-browser.sh
 . ./remove-default-browsers.sh
 . ./remove-webapps.sh
