@@ -55,6 +55,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
+| `install-omarchy-calculator-plugin.sh` | Adds the menu calculator plugin, which stands in for the built-in `omarchy.menu` |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
@@ -224,6 +225,24 @@ name, which the clone displaces, so the installer patches that lookup to go
 through `resolveEnabledId()` — see below. Without that patch the two cannot
 coexist and the widget silently shows nothing.
 
+**The menu** is the built-in one with arithmetic added.
+[koenhendriks/omarchy-menu-calculator-plugin](https://github.com/koenhendriks/omarchy-menu-calculator-plugin)
+is installed by `install-omarchy-calculator-plugin.sh` and declares
+`clonedFrom: omarchy.menu`, so enabling it disables the built-in menu and takes
+over every route into it — the `SUPER` keybind, `omarchy menu`, and any script
+that summons `omarchy.menu` — without a keybinding changing anywhere. Typing an
+expression into the search field puts the answer on top as a real menu row;
+`Enter` copies it. Anything that is not arithmetic leaves the results alone.
+
+It is *not* a derived clone: nothing here rebuilds or patches it, so it is
+installed once and updated with `omarchy plugin update
+io.github.koenhendriks.menu-calculator`. What the installer does beyond adding it
+is check that it is *enabled*, because an installed-but-disabled clone leaves the
+stock menu in place while `omarchy plugin list` still shows the plugin.
+
+Because it is also a bar widget, the layout fragment names it rather than
+`omarchy.menu` for the Omarchy button — see below.
+
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
 and stay at Omarchy's defaults.
@@ -283,6 +302,20 @@ line, collected here so it is findable.
   plugin declares `clonedFrom` it and returns the id unchanged when none does —
   and `install-omarchy-notification-plugin.sh` patches the widget to go through
   it. Anything else that looks a first-party service up by name has the same hole.
+- **A bar layout entry naming a cloned widget renders an empty slot, silently.**
+  `serviceFor()`'s hole above has a twin on the bar. `shell.qml`'s
+  `syncPluginWidgets()` registers each *enabled* widget under its own
+  `manifest.id` and drops the registration of anything disabled, and the bar's
+  `ModuleSlot` looks the layout entry's id up in that registry verbatim — no
+  `clonedFrom` resolution on this path either. So once the calculator plugin
+  disables `omarchy.menu`, an entry still saying `omarchy.menu` matches nothing,
+  falls through to the empty module, and the Omarchy button simply is not there:
+  no warning, no gap, nothing in the log. `omarchy/shell-bar.json` names
+  `io.github.koenhendriks.menu-calculator` for that reason. `omarchy plugin
+  enable` does rewrite the live `shell.json` entry in place, which is why the
+  button reappears by itself — but it reinserts it *after* `omarchy.workspaces`
+  rather than where it was, so `install-omarchy-calculator-plugin.sh` runs before
+  `install-omarchy-shell.sh` and the layout merge puts it back at the front.
 - **There is no per-app mute anywhere in the shell.** `notifications.json` is
   `{version, dnd}` and that is the whole of it; the only per-app list in
   `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and

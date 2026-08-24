@@ -4,7 +4,7 @@
   "layout": {
     "left": [
       {
-        "id": "omarchy.menu"
+        "id": "io.github.koenhendriks.menu-calculator"
       },
       {
         "id": "omarchy.workspaces"
