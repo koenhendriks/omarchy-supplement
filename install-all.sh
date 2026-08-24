@@ -72,6 +72,7 @@ fi
 . ./install-omarchy-notifications.sh
 . ./install-omarchy-clock.sh
 . ./install-omarchy-calculator-plugin.sh
+. ./install-omarchy-spotify-plugin.sh
 . ./install-omarchy-shell.sh
 . ./install-omarchy-notification-plugin.sh
 . ./enable-sshd.sh

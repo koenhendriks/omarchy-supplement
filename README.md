@@ -56,6 +56,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
 | `install-omarchy-calculator-plugin.sh` | Adds the menu calculator plugin, which stands in for the built-in `omarchy.menu` |
+| `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
@@ -321,6 +322,29 @@ line, collected here so it is findable.
   `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and
   `omarchy-action`, and it decides recording, not display. Muting one noisy app
   means patching the service, which means cloning it — hence the hole above.
+- **`omarchy plugin add --enable` puts a bar widget on the bar itself, and the
+  layout merge then takes it away again.** A widget plugin's `manifest.json`
+  declares a `defaultSection`, and adding it rewrites the live `shell.json` to
+  insert the widget there, so it appears on the bar the moment it is installed —
+  which is exactly what makes the loss hard to spot. `install-omarchy-shell.sh`
+  merges `omarchy/shell-bar.json` over the `bar` key, and `layout` is one value:
+  the fragment's three sections replace the live ones wholesale, dropping every
+  entry the fragment does not name. So the widget is on the bar right after
+  `install-omarchy-spotify-plugin.sh` and gone again one script later, with
+  nothing logged and the plugin still enabled in `plugin list`. Any newly added
+  widget needs its id in the fragment; `quickshell.spotify` is there for this
+  reason.
+- **The Spotify plugin's `scripts/setup.sh` resets the Connect device name.** It
+  is the script the mini-player's "Set up and continue" button runs, and it pipes
+  a device name — defaulting to `Omarchy Spotify` — through
+  `scripts/configure-spotifyd.sh`, which rewrites `device_name` in
+  `~/.config/omarchy-spotify/spotifyd.conf`. Re-running it therefore undoes a
+  rename made in the widget's own settings, so
+  `install-omarchy-spotify-plugin.sh` runs it only when the backend binary or its
+  user unit is missing rather than on every pass. It also exits **30**, not 1,
+  when no playback backend can be built for the architecture; that one is a
+  warning here rather than a failure, because Spotify Connect control of other
+  devices still works without a local backend.
 - **`omarchy plugin add` exits non-zero on a plugin it already has.** It fails
   with "plugin '<id>' is already installed; update it with: omarchy plugin
   update". The installers here are *sourced*, so an unguarded `omarchy plugin
