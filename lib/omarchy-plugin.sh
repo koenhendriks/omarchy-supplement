@@ -135,3 +135,18 @@ plugin_require_shell() {
         return 1
     fi
 }
+
+# Copy a file into place only when it differs, echoing either way. Plain copies
+# rather than symlinks into this repo: omarchy-refresh-config installs defaults
+# with `cp -f`, which follows a symlink and would overwrite the file here instead
+# of the one in ~/.config.
+install_if_changed() {
+    local src="$1" target="$2" mode="${3:-755}"
+
+    if cmp -s "$src" "$target"; then
+        echo "$(basename "$target") already up to date in $(dirname "$target")"
+    else
+        echo "Installing $(basename "$target") to $(dirname "$target")"
+        install -m "$mode" "$src" "$target"
+    fi
+}

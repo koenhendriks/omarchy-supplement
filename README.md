@@ -59,9 +59,11 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
+| `install-session.sh` | Installs `hypr-session`, its post-boot hook and shutdown-save guard, and rewrites the menu's shutdown rows |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
+| `session/` | The `hypr-session` tool, its allow-list, its post-boot hook and its systemd guard unit |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
 ## Config overrides
@@ -247,6 +249,66 @@ Because it is also a bar widget, the layout fragment names it rather than
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
 and stay at Omarchy's defaults.
+
+## Session save and restore
+
+`hypr-session` records the open windows on shutdown and rebuilds them at the next
+login: which app, on which workspace, tiled or floating, and for Chrome the exact
+tabs it had open.
+
+    hypr-session save        # snapshot now
+    hypr-session show        # what is currently saved
+    hypr-session restore     # rebuild it, without waiting for a login
+    hypr-session restore --dry-run   # print the hyprctl calls and launch nothing
+
+Only apps listed in `~/.config/hypr-session/apps.conf` are touched. That file is
+seeded once from `session/apps.conf` and then left alone, so re-running
+`install-all.sh` never resets it. To add an app, open it and run
+`hypr-session save -v`: every window it skipped is printed with the matcher line
+that would have caught it.
+
+Three things trigger a save, and only the first sees a live session:
+
+| Trigger | When |
+| --- | --- |
+| The menu's Shutdown / Reboot / Logout rows | Runs the save *before* handing over to `omarchy-system-*` |
+| `hypr-session save`, or the menu's "Save session" row | On demand |
+| `ExecStop=` on `hypr-session-guard.service` | A shutdown that bypasses the menu, best-effort |
+
+The menu rows are the authoritative path, because Omarchy closes every window
+before it powers off (see below), which leaves nothing for a teardown-time hook
+to record. The guard unit is a net for `systemctl poweroff` over ssh; it may
+legitimately capture nothing, and `hypr-session` refuses to overwrite a good
+snapshot with an empty capture so that a useless run cannot destroy a real one.
+
+Restoring happens automatically from `~/.config/omarchy/hooks/post-boot.d/`.
+Windows are relaunched one at a time, in the order they were created, because
+that arrival order *is* what reproduces the tiling layout -- `hypr/custom-layout.lua`
+builds its window order from it and keeps no state across a restart. Placement is
+by workspace only and never by monitor name: `hypr/monitors.lua` already pins every
+workspace to a monitor, so a session saved on the desktop lands sanely on the
+laptop, where floating geometry is re-derived from the monitor's own dimensions.
+
+Read what it did with `journalctl --user -t hypr-session -b`.
+
+A terminal that had a Claude Code session open comes back on that same
+conversation, not just in the right directory: the session id is pinned at save
+time and the terminal is relaunched as
+`foot --working-directory=<cwd> bash -lc 'claude --resume <id>; exec bash -i'`.
+Quitting claude leaves a shell behind rather than closing the window.
+
+On the ultrawide's `custom_center` workspaces the layout comes back too, per
+workspace: how many windows share the centre half, and which window sits in which
+slot -- including one promoted to master with `SUPER + RETURN` despite being the
+newest window. Both are recovered by reading back where the layout put things,
+because `custom-layout.lua` keeps that state in memory only.
+
+Deliberately not restored: which project PhpStorm had open (only the IDE knows),
+the channel or view inside Slack and Teams, and any other program that was
+running inside a terminal (the working directory and a claude session are
+restored, an arbitrary command is not). For Chrome, all windows of one profile
+share a process, so the *set* of windows and their tabs come back but which window
+lands on which workspace is not guaranteed.
 
 ## VPNs
 
@@ -579,3 +641,119 @@ line, collected here so it is findable.
   just lost the rule authorising it, so the tear-down asks for a password. Order
   matters more than it looks: `install-all.sh` does both in one `sudo` call and
   deletes the rule last.
+- **Omarchy closes every window *before* it powers off, so no shutdown hook can
+  see the session.** `omarchy-system-shutdown` arms poweroff as a 2s transient
+  timer and *then* runs `omarchy-hyprland-window-close-all`; reboot and logout do
+  the same. Anything observing at teardown -- an `ExecStop=`, a logind inhibitor --
+  observes an empty window list. Shadowing the binary is not an option either:
+  `/usr/share/omarchy/bin` is a symlink farm that sits ahead of `/usr/local/bin`
+  on `PATH`, and `~/.local/bin` comes after `/usr/bin`. That leaves the menu's
+  own action string, overridden in `~/.config/omarchy/extensions/omarchy-menu.jsonc`,
+  as the only interception point that runs while the windows still exist. It is
+  also why the tool is called `hypr-session` and not `omarchy-session`: anything
+  Omarchy ever ships under that name would silently win.
+- **A partial menu override blanks every field it omits, and a malformed one
+  silently deletes the whole extension.** `MenuModel.js` `normalizeItem()` emits
+  every key (empty string when absent) and `mergeMenuSources()` copies all of them
+  over the default, so overriding only `action` on `system.shutdown` leaves a row
+  labelled `system.shutdown` with no icon -- the file's own comment claims
+  otherwise. Worse, `stripJsonc()` handles whole-line `//` comments only (no
+  `/* */`, though trailing commas are fine) and `parseMenuJsonc()` catches the
+  failure and returns `[]` with `printErrors: false`. One stray character drops
+  every user menu row with nothing in the journal. `install-session.sh` therefore
+  re-declares `icon` and `label` from the packaged file, and parses its own
+  candidate before writing it.
+- **A `graphical-session.target` unit's `ExecStop` races the compositor unless it
+  says `After=wayland-wm@hyprland.desktop.service`.** A target automatically gains
+  `After=` on everything in its `Wants=`, so with `PartOf=` and `WantedBy=` alone
+  the unit and `wayland-wm@` are both merely "after `graphical-session.target`" on
+  the way down, with no edge between them, and whether `hyprctl` still answers is
+  a coin flip. `After=graphical-session.target` looks like the fix and is an
+  ordering cycle, which systemd resolves by dropping an edge of its choosing. Also
+  set `TimeoutStopSec=`: Omarchy caps the whole session teardown at 5s via a
+  `user@.service` drop-in, but that drop-in does not reach units *inside* the
+  manager, which would otherwise inherit 90s and hang the shutdown.
+- **Chrome collapses its whole argv into one blob, so the obvious way to read its
+  profile finds nothing.** Every other app keeps a NUL-separated
+  `/proc/<pid>/cmdline`, but Chrome rewrites its own for the process title. Scanning
+  argv elements for `--profile-directory=` therefore matches nothing and, because
+  Chrome omits that flag entirely for the default profile, every window reads as
+  `Default` -- silently restoring the wrong profile. `hypr-session` falls back to
+  searching the joined text, ending the value at the next ` --` because a profile
+  directory contains a space (`Profile 1`).
+- **`hyprctl dispatch` reports success no matter what; `hyprctl eval` does not.**
+  A dispatch against a nonexistent address prints `ok` and exits 0, so no check may
+  rely on its exit status -- assert on observed state instead. `hyprctl eval` is the
+  exception: it exits 7 on a Lua error, which is what makes it worth using for the
+  launch calls. (`hyprctl repl` is the one that prints a return value; `eval`
+  swallows it.)
+- **A window rule's `move` is monitor-relative, while `hyprctl clients`' `at` is
+  global.** On a stacked two-monitor setup this is a 1440px difference and nothing
+  warns about it: `move = { 100, 200 }` on DP-1, whose origin is `y=1440`, reports
+  back as `at=[100,1640]`. The save side stores floating geometry as a fraction of
+  the monitor and the restore emits `monitor_w`/`monitor_h` expressions, which also
+  makes a desktop-saved session land sanely on the laptop panel.
+- **Arrival order is tiling order.** Launching three windows into an empty
+  `lua:custom_center` workspace one at a time puts the first in the centre master
+  and the next two in the side quarters, every time -- `recalculate()` appends new
+  addresses in `ctx.targets` order and `states` is empty at login. So the restore
+  launches sequentially and waits for each window to map, and never replays pixel
+  geometry for a tiled window. Which order to launch in is the subtle part: see
+  the next two entries.
+- **`uwsm-app` carries Hyprland's exec rules, despite being a FIFO client.**
+  Reading the source suggests it cannot: `uwsm-app` writes to a pipe and
+  `wayland-wm-app-daemon.service` spawns the app, so neither the PID chain nor the
+  environment that `HL_EXEC_RULE_TOKEN` and the PPID walk depend on should reach
+  it. Measured, it works anyway -- a window launched through it lands on the
+  workspace the rule asked for. Worth knowing before "fixing" a working restore to
+  use the slower `uwsm app`. Either form names the scope
+  `app-Hyprland-<name>-<hex8>.scope`, so `-a <desktop-id>` is what makes the id
+  survive into the next save.
+- **The Omarchy menu launches apps through `gtk-launch`, which erases the desktop
+  id.** A window started from the menu lands in
+  `app-Hyprland-gtk\x2dlaunch-<hex>.scope` rather than `app-<id>-<pid>.scope`, so
+  the launcher identity is simply gone -- verified on Sublime and PhpStorm, both of
+  which were silently skipped by an `id:` matcher that looked correct, and would
+  otherwise have been recorded with an unusable raw cmdline. `hypr-session`
+  therefore falls back to matching an `id:` rule against the window class, which
+  is what makes the allow-list work for anything opened the way these apps
+  normally are.
+- **Claude Code does not hold its transcript open, so a running session's id is
+  not in `/proc`.** It appends and closes, and the id is not in the process's
+  cmdline or environment either. What does work: the transcript lives at
+  `~/.claude/projects/<slug>/<session-id>.jsonl`, where the slug is the session's
+  cwd with every non-alphanumeric character replaced by a dash (so
+  `~/.claude/skills` becomes `-home-koen--claude-skills`, double dash included),
+  and the newest transcript in that directory is the live session. For the case
+  that breaks -- two sessions in one directory -- the daemon puts one socket per
+  live session at `/tmp/cc-daemon-<uid>/<id>/rv/<first-8-of-session-id>.sock`,
+  which can be attributed to a terminal by matching `/proc/net/unix` inodes
+  against its descendants' file descriptors. That part is undocumented internals
+  and degrades to the newest transcript if it ever changes.
+- **`custom_center`'s per-workspace state is recoverable by inverting its own
+  geometry.** `custom-layout.lua` keeps `masters` and `window_order` in a
+  module-local table with no persistence, so there is nothing on disk to read --
+  but the placement is invertible: windows whose horizontal centre falls in the
+  middle half of the monitor are the masters, which gives the master count,
+  ordered left to right, followed by the left-quarter slaves top to bottom and
+  then the right-quarter ones. Classifying on a fraction of the monitor rather
+  than against the workspace's usable area means gaps and the bar's reserved strip
+  need no accounting. Verified against a live desktop: it reproduced `masters = 2`
+  on one workspace and `1` on another, with the right window in every slot.
+- **Creation order is not render order, so restoring by age demotes a promoted
+  master.** `swapwithmaster` reorders `window_order` while changing nothing
+  observable about a window's age, so the master is routinely the *newest* window
+  -- on the live desktop PhpStorm held master slot 1 while being the last window
+  opened. Launching in `stableId` order would have put it in a side quarter. The
+  saved slot index is what the restore replays instead.
+- **`addmaster` promotes the focused window into the slot it creates.** So
+  replaying a master count is not simply dispatching it N-1 times: whatever
+  happens to be focused gets pulled into each new slot, scrambling the order just
+  rebuilt. Focus the window that belongs in slot `i` first and the layout skips the
+  swap, because it only swaps when the target is not already sitting there.
+- **Post-hoc placement must skip multi-instance classes.** Two windows of one
+  class are indistinguishable from outside, so "move a foot to the workspace this
+  saved foot was on" is as likely to drag an unrelated terminal across the desktop
+  -- observed, on the terminal this was being developed in. For the same reason the
+  already-running count for a `mode=multi` app has to be per workspace: one live
+  terminal elsewhere otherwise suppresses a launch on a workspace that had none.

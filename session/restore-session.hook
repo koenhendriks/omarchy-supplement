@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Rebuild the saved window session, ~2s after Hyprland starts.
+#
+# omarchy-hook runs every file in post-boot.d synchronously, with plain
+# `bash <file>` and one after another, so a hook that blocks for the 30-45
+# seconds a session restore takes delays every hook queued behind it. Detached
+# with setsid --fork so it outlives the hook runner returning and does not sit in
+# Hyprland's foreground process group.
+#
+# The environment is inherited: WAYLAND_DISPLAY and HYPRLAND_INSTANCE_SIGNATURE
+# come down from wayland-wm@hyprland.desktop.service through the
+# hl.exec_cmd("sleep 2 && omarchy-hook post-boot") in Omarchy's autostart.lua, so
+# hyprctl works here with no env fixup.
+#
+# Piped through systemd-cat because omarchy-hook invokes hooks as `bash <file>`,
+# which would otherwise journal everything under the identifier "bash". Read it:
+#   journalctl --user -t hypr-session -b
+#
+# `exit 0` is correct here and is not the repo's no-exit-0 rule being broken:
+# that rule applies to install-*.sh, which install-all.sh SOURCES. A hook is a
+# separate bash process, and a non-zero exit only earns a contentless
+# "Hook failed:" line from the runner.
+
+command -v hypr-session >/dev/null || exit 0
+
+setsid --fork bash -c \
+    'exec hypr-session restore 2>&1 | systemd-cat -t hypr-session' \
+    >/dev/null 2>&1 &
+
+exit 0

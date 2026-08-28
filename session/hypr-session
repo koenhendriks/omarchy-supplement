@@ -1,0 +1,1357 @@
+#!/bin/bash
+
+# Save the current Hyprland window session and rebuild it at the next login.
+#
+#   hypr-session save [--trigger=NAME] [--if-stale=SECS] [--dry-run] [-v]
+#   hypr-session restore [--dry-run] [--force] [-v]
+#   hypr-session show
+#   hypr-session arm
+#
+# Deliberately not named omarchy-* : /usr/share/omarchy/bin is a symlink farm
+# that sits ahead of /usr/local/bin and ~/.local/bin on PATH, so anything Omarchy
+# ships under a matching name would silently win over this script.
+#
+# Three things call `save`, and only the first sees a live session:
+#
+#   1. The menu rows install-session.sh writes into
+#      ~/.config/omarchy/extensions/omarchy-menu.jsonc, which run the save
+#      BEFORE handing over to omarchy-system-shutdown. This is the authoritative
+#      path, because omarchy-system-shutdown arms poweroff on a 2s timer and then
+#      runs omarchy-hyprland-window-close-all -- so by the time any teardown hook
+#      runs, every window is already gone.
+#   2. This script by hand, or the "Save session" menu row.
+#   3. ExecStop= on hypr-session-guard.service, a best-effort net for a shutdown
+#      that bypasses the menu (`systemctl poweroff` over ssh). It may well
+#      capture nothing: the window processes live in unordered app.slice scopes
+#      with no ordering edge to that unit. The zero-capture guard below is what
+#      keeps a useless run from overwriting a good snapshot.
+
+set -uo pipefail
+
+SCHEMA_VERSION=1
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr-session"
+SESSION_FILE="$STATE_DIR/session.json"
+LOCK_FILE="$STATE_DIR/save.lock"
+APPS_CONF="${HYPR_SESSION_APPS:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr-session/apps.conf}"
+GENERATIONS=3
+MAX_AGE_DAYS=30
+
+VERBOSE=0
+DRY_RUN=0
+FORCE=0
+TRIGGER="manual"
+IF_STALE=0
+
+# journald rather than a log file: the menu path's stdout is thrown away by
+# Quickshell's execDetached, so a log file would miss exactly the runs that
+# matter. Read it back with: journalctl --user -t hypr-session -b
+log() {
+    logger -t hypr-session -- "$*" 2>/dev/null || true
+    [ "$VERBOSE" = 1 ] && echo "$*" >&2
+    return 0
+}
+
+die() {
+    log "error: $*"
+    echo "hypr-session: $*" >&2
+    exit 1
+}
+
+usage() {
+    sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1
+}
+
+# hyprctl needs the instance signature; WAYLAND_DISPLAY is not required (verified
+# with `env -u WAYLAND_DISPLAY hyprctl -j version`). Both are normally in the
+# user manager's environment, so ExecStop= inherits them; the fallback is for a
+# cron or ssh invocation.
+setup_hypr_env() {
+    if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+        local runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+        local sig
+        sig=$(ls -t "$runtime/hypr" 2>/dev/null | head -1)
+        [ -n "$sig" ] && export HYPRLAND_INSTANCE_SIGNATURE="$sig"
+    fi
+    [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]
+}
+
+hypr_ready() {
+    hyprctl -j version >/dev/null 2>&1
+}
+
+parse_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --trigger=*) TRIGGER="${1#*=}" ;;
+            --if-stale=*) IF_STALE="${1#*=}" ;;
+            --dry-run) DRY_RUN=1 ;;
+            --force) FORCE=1 ;;
+            -v|--verbose) VERBOSE=1 ;;
+            -h|--help) usage ;;
+            *) die "unknown option: $1" ;;
+        esac
+        shift
+    done
+}
+
+cmd_save() {
+    parse_args "$@"
+    setup_hypr_env || { log "save skipped: no Hyprland instance"; return 0; }
+    hypr_ready || { log "save skipped: Hyprland is not answering"; return 0; }
+
+    mkdir -p "$STATE_DIR"
+
+    # Non-blocking with a short wait, so a manual save during the shutdown
+    # wrapper cannot interleave with it.
+    exec 9>"$LOCK_FILE"
+    if ! flock -w 2 9; then
+        log "save skipped: another save holds the lock"
+        return 0
+    fi
+
+    if [ "$IF_STALE" -gt 0 ] && [ -f "$SESSION_FILE" ]; then
+        local age=$(( $(date +%s) - $(stat -c %Y "$SESSION_FILE") ))
+        if [ "$age" -lt "$IF_STALE" ]; then
+            log "save skipped: session.json was written ${age}s ago (--if-stale=$IF_STALE)"
+            return 0
+        fi
+    fi
+
+    HYPR_SESSION_STATE_DIR="$STATE_DIR" \
+    HYPR_SESSION_FILE="$SESSION_FILE" \
+    HYPR_SESSION_APPS_CONF="$APPS_CONF" \
+    HYPR_SESSION_SCHEMA="$SCHEMA_VERSION" \
+    HYPR_SESSION_GENERATIONS="$GENERATIONS" \
+    HYPR_SESSION_TRIGGER="$TRIGGER" \
+    HYPR_SESSION_VERBOSE="$VERBOSE" \
+    HYPR_SESSION_DRY_RUN="$DRY_RUN" \
+        python3 -                                          <<'PY'
+import json, os, re, shlex, socket, subprocess, sys, tempfile, time
+
+STATE_DIR   = os.environ["HYPR_SESSION_STATE_DIR"]
+OUT         = os.environ["HYPR_SESSION_FILE"]
+APPS_CONF   = os.environ["HYPR_SESSION_APPS_CONF"]
+SCHEMA      = int(os.environ["HYPR_SESSION_SCHEMA"])
+GENERATIONS = int(os.environ["HYPR_SESSION_GENERATIONS"])
+TRIGGER     = os.environ["HYPR_SESSION_TRIGGER"]
+VERBOSE     = os.environ["HYPR_SESSION_VERBOSE"] == "1"
+DRY_RUN     = os.environ["HYPR_SESSION_DRY_RUN"] == "1"
+
+TERMINALS = {"foot", "alacritty", "kitty", "ghostty"}
+
+notes = []
+def note(msg):
+    notes.append(msg)
+    if VERBOSE:
+        print(msg, file=sys.stderr)
+
+def hyprctl(*args):
+    out = subprocess.run(["hyprctl", "-j", *args], capture_output=True, text=True)
+    if out.returncode != 0:
+        raise SystemExit("hyprctl %s failed: %s" % (" ".join(args), out.stderr.strip()))
+    return json.loads(out.stdout)
+
+
+# ---------------------------------------------------------------- allow-list
+
+def load_allowlist(path):
+    """Ordered list of matchers. shlex so a quoted value may contain spaces,
+    which the Chrome profile directories need ("Profile 1")."""
+    rules = []
+    if not os.path.exists(path):
+        note("no allow-list at %s, nothing will be saved" % path)
+        return rules
+    for lineno, raw in enumerate(open(path), 1):
+        raw = raw.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        try:
+            fields = shlex.split(raw)
+        except ValueError as e:
+            note("apps.conf:%d ignored, cannot parse: %s" % (lineno, e))
+            continue
+        if not fields:
+            continue
+        matcher, opts = fields[0], {}
+        flags = set()
+        for f in fields[1:]:
+            if "=" in f:
+                k, v = f.split("=", 1)
+                opts[k] = v
+            else:
+                flags.add(f)
+        if "off" in flags:
+            continue
+        kind, _, value = matcher.partition(":")
+        if kind not in ("id", "class", "chrome") or not value:
+            note("apps.conf:%d ignored, not a known matcher: %s" % (lineno, matcher))
+            continue
+        rules.append({
+            "kind": kind, "value": value,
+            "mode": opts.get("mode", "single"),
+            "desktop": opts.get("desktop"),
+            "launch": opts.get("launch"),
+            "probe": opts.get("probe"),
+        })
+    return rules
+
+
+# ------------------------------------------------- launcher identity per pid
+
+HEX8 = re.compile(r"-[0-9a-f]{8}$")
+PIDSUFFIX = re.compile(r"-\d+$")
+
+def unescape_systemd(name):
+    return re.sub(r"\\x([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1), 16)), name)
+
+def scope_identity(pid):
+    """The desktop-entry id (or uwsm app name) a window's process was started
+    under, recovered from its cgroup. Three shapes occur here:
+        app-<id>-<pid>.scope             GLib launched (chrome, slack, teams)
+        app-Hyprland-<name>-<hex8>.scope uwsm launched (uwsm-app / uwsm app -a)
+        app-<id>@autostart.service       XDG autostart (slack has one)
+    Suffixes are stripped before unescaping, because \\x2d unescapes to a dash
+    and would make the trailing -<hex8>/-<pid> ambiguous."""
+    try:
+        with open("/proc/%d/cgroup" % pid) as fh:
+            comp = fh.read().strip().splitlines()[-1].split("/")[-1]
+    except (OSError, IndexError):
+        return None, None
+    raw = comp
+    for suffix in (".scope", ".service"):
+        if comp.endswith(suffix):
+            comp = comp[: -len(suffix)]
+    if comp.startswith("app-"):
+        comp = comp[4:]
+    if comp.endswith("@autostart"):
+        comp = comp[: -len("@autostart")]
+    elif comp.startswith("Hyprland-"):
+        comp = HEX8.sub("", comp[len("Hyprland-"):])
+    else:
+        comp = PIDSUFFIX.sub("", comp)
+    return unescape_systemd(comp), raw
+
+def desktop_dirs():
+    dirs = [os.path.expanduser("~/.local/share/applications")]
+    for d in os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":"):
+        if d:
+            dirs.append(os.path.join(d, "applications"))
+    return dirs
+
+def desktop_exists(entry_id):
+    return any(os.path.exists(os.path.join(d, entry_id + ".desktop")) for d in desktop_dirs())
+
+def cmdline(pid):
+    try:
+        with open("/proc/%d/cmdline" % pid, "rb") as fh:
+            return [a for a in fh.read().split(b"\0") if a]
+    except OSError:
+        return []
+
+def chrome_profile(pid):
+    """Chrome omits --profile-directory for the default profile, so its absence
+    is meaningful rather than an error.
+
+    Two shapes have to be handled. Most apps keep a NUL-separated argv, but
+    Chrome rewrites its own into a single space-joined blob for the process
+    title, so the per-argument scan finds nothing there and would report every
+    window as Default. Fall back to searching the joined text, ending the value
+    at the next " --" because a profile directory may contain a space
+    ("Profile 1")."""
+    args = cmdline(pid)
+    for arg in args:
+        a = arg.decode("utf-8", "replace")
+        if a.startswith("--profile-directory="):
+            return a.split("=", 1)[1]
+    text = b" ".join(args).decode("utf-8", "replace")
+    m = re.search(r"--profile-directory=(.*?)(?= --|$)", text)
+    if m and m.group(1).strip():
+        return m.group(1).strip()
+    return "Default"
+
+def descendants(pid, depth=6):
+    out, frontier = [], [pid]
+    for _ in range(depth):
+        nxt = []
+        for p in frontier:
+            kids = subprocess.run(["pgrep", "-P", str(p)], capture_output=True, text=True)
+            for k in kids.stdout.split():
+                nxt.append(int(k))
+        if not nxt:
+            break
+        out.extend(nxt)
+        frontier = nxt
+    return out
+
+def project_dir_for(path):
+    """Claude Code stores a session transcript under ~/.claude/projects/<slug>,
+    where the slug is the absolute cwd with every non-alphanumeric character
+    replaced by a dash. Verified against the real directories, including the
+    double dash a dot produces (~/.claude/skills/... -> -home-koen--claude-...)."""
+    slug = re.sub(r"[^A-Za-z0-9]", "-", path)
+    return os.path.expanduser("~/.claude/projects/%s" % slug)
+
+def live_session_prefixes():
+    """Claude Code's daemon puts one socket per live session in
+    /tmp/cc-daemon-<uid>/<id>/rv/<first-8-of-session-id>.sock. Undocumented
+    internals, used only to disambiguate two sessions in the same directory, and
+    everything degrades to the newest transcript if the layout ever changes."""
+    import glob
+    out = {}
+    for sock in glob.glob("/tmp/cc-daemon-*/*/rv/*.sock"):
+        out[os.path.basename(sock)[: -len(".sock")]] = sock
+    return out
+
+def socket_inodes_by_path():
+    inodes = {}
+    try:
+        with open("/proc/net/unix") as fh:
+            next(fh, None)
+            for line in fh:
+                cols = line.split()
+                if len(cols) >= 8:
+                    inodes.setdefault(cols[7], set()).add(cols[6])
+    except OSError:
+        pass
+    return inodes
+
+def pid_holds_socket(pid, inodes):
+    """/proc/<pid>/fd shows a unix socket as socket:[<socket inode>], which is not
+    the .sock file's filesystem inode, so the path has to come from
+    /proc/net/unix."""
+    want = {"socket:[%s]" % i for i in inodes}
+    try:
+        for fd in os.listdir("/proc/%d/fd" % pid):
+            try:
+                if os.readlink("/proc/%d/fd/%s" % (pid, fd)) in want:
+                    return True
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return False
+
+def claude_session(term_pid):
+    """The claude session running in this terminal, as (session_id, cwd), so the
+    restore can reopen the exact conversation rather than a bare shell."""
+    kids = descendants(term_pid)
+    claude_pids = []
+    for p in kids:
+        args = [a.decode("utf-8", "replace") for a in cmdline(p)]
+        if not args or os.path.basename(args[0]) != "claude":
+            continue
+        # Skip the helper processes a session spawns for itself.
+        if len(args) > 1 and args[1] in ("daemon", "bg-pty-host", "bg-spare", "mcp"):
+            continue
+        claude_pids.append(p)
+    if not claude_pids:
+        return None
+
+    main = claude_pids[0]
+    try:
+        cwd = os.readlink("/proc/%d/cwd" % main)
+    except OSError:
+        return None
+
+    proj = project_dir_for(cwd)
+    if not os.path.isdir(proj):
+        return None
+    transcripts = [f for f in os.listdir(proj) if f.endswith(".jsonl")]
+    if not transcripts:
+        return None
+
+    live = live_session_prefixes()
+    matching = [t for t in transcripts if t[:8] in live]
+
+    if len(matching) == 1:
+        return matching[0][: -len(".jsonl")], cwd
+
+    if len(matching) > 1:
+        # Two live sessions in one directory. Attribute a socket to this
+        # terminal's own process tree, so two terminals do not both resume
+        # whichever conversation was touched last.
+        by_path = socket_inodes_by_path()
+        tree = set(kids) | {term_pid}
+        for t in matching:
+            inodes = by_path.get(live[t[:8]], set())
+            if inodes and any(pid_holds_socket(p, inodes) for p in tree):
+                return t[: -len(".jsonl")], cwd
+
+    newest = max(transcripts, key=lambda f: os.path.getmtime(os.path.join(proj, f)))
+    return newest[: -len(".jsonl")], cwd
+
+def terminal_cwd(pid):
+    """A terminal's own cwd is useless (foot reports /) and its cmdline records
+    only where it was first started. The shell inside it holds the real one, so
+    read the first child and stop there -- a deeper walk picks up the cwd of
+    whatever subprocess happens to be running."""
+    try:
+        kids = subprocess.run(["pgrep", "-P", str(pid)], capture_output=True, text=True)
+        first = kids.stdout.split()
+        if not first:
+            return None
+        return os.readlink("/proc/%s/cwd" % first[0])
+    except (OSError, ValueError):
+        return None
+
+
+# ------------------------------------------------------------------ snapshot
+
+clients    = hyprctl("clients")
+monitors   = hyprctl("monitors")
+workspaces = hyprctl("workspaces")
+version    = hyprctl("version")
+
+CUSTOM_CENTER = "lua:custom_center"
+
+def custom_center_slots(wsid, mon):
+    """Invert custom_center's placement to recover its per-workspace state.
+
+    The layout puts window_order[1..masters] across the middle half, then the
+    remaining windows down the left quarter (ceil of the rest) and the right
+    quarter. So classifying by where a window's centre sits horizontally gives
+    back both the master count and the render order -- which is the only way to
+    recover it, because custom-layout.lua keeps `masters` and `window_order` in a
+    module-local table with no persistence.
+
+    Classified on the fraction of the monitor rather than against the workspace's
+    usable area, so gaps and the bar's reserved strip need no accounting.
+
+    Every tiled window counts, not just allow-listed ones: a window that will not
+    be restored still occupied a slot, and ignoring it would shift everything
+    after it."""
+    tiled = [c for c in clients
+             if (c.get("workspace") or {}).get("id") == wsid
+             and c.get("mapped") and not c.get("floating")]
+    if not tiled:
+        return {}, 0
+
+    mx = mon.get("x", 0)
+    mw = mon.get("width") or 1
+    masters, left, right = [], [], []
+    for c in tiled:
+        cx = (c["at"][0] + c["size"][0] / 2.0 - mx) / mw
+        if 0.25 < cx < 0.75:
+            masters.append(c)
+        elif cx <= 0.25:
+            left.append(c)
+        else:
+            right.append(c)
+
+    masters.sort(key=lambda c: c["at"][0])
+    left.sort(key=lambda c: c["at"][1])
+    right.sort(key=lambda c: c["at"][1])
+
+    order = masters + left + right
+    return {c["address"]: i for i, c in enumerate(order, 1)}, len(masters)
+
+mon_by_name = {m.get("name"): m for m in monitors}
+slot_by_address, ws_layout = {}, {}
+for ws in workspaces:
+    wsid = ws.get("id")
+    layout = ws.get("tiledLayout")
+    mon = mon_by_name.get(ws.get("monitor"), {})
+    entry = {"id": wsid, "name": ws.get("name"), "monitor": ws.get("monitor"),
+             "tiled_layout": layout}
+    if layout == CUSTOM_CENTER:
+        slots, masters = custom_center_slots(wsid, mon)
+        slot_by_address.update(slots)
+        entry["masters"] = masters
+    ws_layout[wsid] = entry
+try:
+    active = hyprctl("activewindow")
+except SystemExit:
+    active = {}
+
+mon_by_id = {m["id"]: m for m in monitors}
+rules = load_allowlist(APPS_CONF)
+
+windows, skipped, chrome_profiles = [], [], {}
+
+def matcher_for(entry_id, klass, pid):
+    """Returns (rule, how, chrome_profile, desktop_id_to_launch_with).
+
+    Resolution order: the scope id, but only when a matching desktop entry really
+    exists (Chrome names its own scope com.google.Chrome, for which there is no
+    desktop file), then Chrome by profile, then class, then an id: rule whose
+    value happens to equal the class.
+
+    That last fallback is what makes the allow-list work for anything started
+    from the Omarchy menu. The menu launches via gtk-launch, whose scope is
+    app-Hyprland-gtk\\x2dlaunch-<hex> -- the desktop id is erased, so `id:` alone
+    would never match and the window would be skipped, or worse, recorded with an
+    unusable raw cmdline. Sublime and PhpStorm both arrive this way."""
+    if entry_id and desktop_exists(entry_id):
+        for r in rules:
+            if r["kind"] == "id" and r["value"] == entry_id:
+                return r, "cgroup", None, entry_id
+    if klass.lower() in ("google-chrome", "chromium"):
+        prof = chrome_profile(pid)
+        for r in rules:
+            if r["kind"] == "chrome" and r["value"] == prof:
+                return r, "chrome-cmdline", prof, r["desktop"]
+    for r in rules:
+        if r["kind"] == "class" and r["value"].lower() == klass.lower():
+            return r, "class", None, r["desktop"]
+    for r in rules:
+        if r["kind"] == "id" and r["value"].lower() == klass.lower() \
+                and desktop_exists(r["value"]):
+            return r, "id-via-class", None, r["value"]
+    return None, "unresolved", None, None
+
+def suggested_matcher(entry_id, klass):
+    if entry_id and desktop_exists(entry_id):
+        return "id:%s" % entry_id
+    if desktop_exists(klass):
+        return "id:%s" % klass
+    return "class:%s" % klass
+
+for c in clients:
+    if not c.get("mapped", False):
+        continue
+    ws = c.get("workspace") or {}
+    if ws.get("id", -1) < 0 or str(ws.get("name", "")).startswith("special:"):
+        continue
+
+    klass = c.get("initialClass") or c.get("class") or ""
+    pid = c.get("pid", 0)
+    entry_id, raw_scope = scope_identity(pid) if pid else (None, None)
+    rule, resolved_by, prof, launch_id = matcher_for(entry_id, klass, pid)
+
+    if rule is None:
+        skipped.append({
+            "class": c.get("class", ""), "initial_class": klass,
+            "title": c.get("title", ""), "workspace": ws.get("id"),
+            "desktop_id": entry_id, "cgroup_scope": raw_scope,
+            "reason": "not-in-allowlist",
+            "add_this_line": suggested_matcher(entry_id, klass),
+        })
+        continue
+
+    mon = mon_by_id.get(c.get("monitor"), {})
+    at, size = c.get("at", [0, 0]), c.get("size", [0, 0])
+    floating = bool(c.get("floating", False))
+
+    # A window rule's move is monitor-relative while hyprctl's `at` is global
+    # layout coordinates (verified: move={100,200} on DP-1, whose origin is
+    # y=1440, reported at=[100,1640]). Store the fraction of the monitor so a
+    # session saved on the ultrawide lands sanely on the laptop panel.
+    rel = None
+    if floating and mon:
+        mw, mh = mon.get("width", 0) or 1, mon.get("height", 0) or 1
+        rel = {
+            "x": round(max(0.0, min(0.95, (at[0] - mon.get("x", 0)) / mw)), 4),
+            "y": round(max(0.0, min(0.95, (at[1] - mon.get("y", 0)) / mh)), 4),
+            "w": round(max(0.01, min(1.0, size[0] / mw)), 4),
+            "h": round(max(0.01, min(1.0, size[1] / mh)), 4),
+        }
+
+    if rule["launch"]:
+        launch, confidence = shlex.split(rule["launch"]), "explicit"
+    elif launch_id and desktop_exists(launch_id):
+        launch, confidence = ["uwsm-app", "--", launch_id + ".desktop"], "high"
+    else:
+        # Recorded so a diagnosis is possible, flagged so restore refuses it:
+        # a raw cmdline pins things like an Electron ABI version.
+        launch, confidence = ["uwsm-app", "--"] + [
+            a.decode("utf-8", "replace") for a in cmdline(pid)], "low"
+
+    rec = {
+        "app": launch_id or klass,
+        "matched_by": "%s:%s" % (rule["kind"], rule["value"]),
+        "resolved_by": resolved_by,
+        "mode": rule["mode"],
+        "launch": launch,
+        "launch_confidence": confidence,
+        "probe": rule["probe"],
+        "workspace": {"id": ws.get("id"), "name": ws.get("name")},
+        "monitor": mon.get("name"),
+        "class": c.get("class", ""),
+        "initial_class": klass,
+        "title": c.get("title", ""),
+        "floating": floating,
+        "pinned": bool(c.get("pinned", False)),
+        "xwayland": bool(c.get("xwayland", False)),
+        "fullscreen": c.get("fullscreen", 0),
+        "stable_id": c.get("stableId"),
+        "layout_slot": slot_by_address.get(c.get("address")),
+        "focus_history_id": c.get("focusHistoryID"),
+        "geometry": {"at": at, "size": size, "relative": rel},
+        "pid": pid,
+    }
+
+    if prof is not None:
+        rec["chrome"] = {"profile_directory": prof}
+        p = chrome_profiles.setdefault(prof, {
+            "profile_directory": prof,
+            "desktop_id": rule["desktop"],
+            "restore_last_session": True,
+            "workspaces": [],
+        })
+        p["workspaces"].append(ws.get("id"))
+
+    if rule["kind"] == "class" and klass.lower() in TERMINALS:
+        cwd = terminal_cwd(pid)
+        if cwd and os.path.isdir(cwd):
+            rec["cwd"] = cwd
+        sess = claude_session(pid)
+        if sess:
+            rec["claude"] = {"session_id": sess[0], "cwd": sess[1]}
+            note("%s is running claude session %s" % (klass, sess[0]))
+
+    windows.append(rec)
+
+# All windows of one Chrome profile share a pid and a class, so there is no
+# per-window handle and no way to say which window held which tabs. Restore
+# rebuilds the set and anchors it to the most recently focused window's
+# workspace; record that here.
+for p in chrome_profiles.values():
+    focus = [w for w in windows
+             if w.get("chrome", {}).get("profile_directory") == p["profile_directory"]]
+    focus.sort(key=lambda w: w.get("focus_history_id") or 0)
+    p["primary_workspace"] = focus[0]["workspace"]["id"] if focus else None
+    p["windows"] = len(focus)
+
+by_pid = {}
+for w in windows:
+    by_pid.setdefault(w["pid"], []).append(w)
+for group in by_pid.values():
+    group.sort(key=lambda w: str(w.get("stable_id") or ""))
+    for i, w in enumerate(group):
+        w["window_index"] = i
+        w["windows_from_same_pid"] = len(group)
+
+session = {
+    "version": SCHEMA,
+    "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    "saved_at_epoch": int(time.time()),
+    "trigger": TRIGGER,
+    "host": socket.gethostname(),
+    "hyprland": version.get("tag") or version.get("version"),
+    "monitors": [{
+        "id": m.get("id"), "name": m.get("name"), "description": m.get("description"),
+        "x": m.get("x"), "y": m.get("y"),
+        "width": m.get("width"), "height": m.get("height"),
+        "reserved": m.get("reserved"),
+        "active_workspace": m.get("activeWorkspace"),
+    } for m in monitors],
+    "focused": {
+        "address": active.get("address"),
+        "class": active.get("initialClass") or active.get("class"),
+        "workspace": (active.get("workspace") or {}).get("id"),
+    } if active else None,
+    "workspaces": [ws_layout[k] for k in sorted(ws_layout)],
+    "chrome_profiles": sorted(chrome_profiles.values(),
+                              key=lambda p: p["profile_directory"]),
+    # Ordered by layout slot, not creation order: under custom_center a window
+    # promoted with swapwithmaster is a master despite being the newest window, so
+    # replaying creation order would demote it.
+    "windows": sorted(windows, key=lambda w: (w["workspace"]["id"] or 0,
+                                              w.get("layout_slot") or 999,
+                                              str(w.get("stable_id") or ""))),
+    "skipped": skipped,
+}
+
+summary = "trigger=%s captured=%d skipped=%d" % (TRIGGER, len(windows), len(skipped))
+
+if DRY_RUN:
+    print(json.dumps(session, indent=2, sort_keys=True))
+    print("\n# dry run, %s, nothing written" % summary, file=sys.stderr)
+    raise SystemExit(0)
+
+# The reason a shutdown hook sees nothing is that Omarchy closes every window
+# before powering off. Refusing to write an empty capture is what stops the
+# ExecStop= net from replacing a good snapshot with that empty view.
+if not windows and os.path.exists(OUT):
+    note("captured 0 windows, keeping the existing snapshot")
+    print("hypr-session: captured 0 windows, existing snapshot kept")
+    raise SystemExit(0)
+
+def rotate():
+    """Hardlink rather than rename the current generation, so session.json never
+    ceases to exist even momentarily."""
+    oldest = "%s.%d" % (OUT, GENERATIONS)
+    if os.path.exists(oldest):
+        os.unlink(oldest)
+    for n in range(GENERATIONS - 1, 0, -1):
+        src, dst = "%s.%d" % (OUT, n), "%s.%d" % (OUT, n + 1)
+        if os.path.exists(src):
+            os.replace(src, dst)
+    if os.path.exists(OUT):
+        os.link(OUT, "%s.1" % OUT)
+
+def comparable(d):
+    return {k: v for k, v in d.items()
+            if k not in ("saved_at", "saved_at_epoch", "trigger")}
+
+unchanged = False
+if os.path.exists(OUT):
+    try:
+        with open(OUT) as fh:
+            unchanged = comparable(json.load(fh)) == comparable(session)
+    except (OSError, ValueError):
+        unchanged = False
+
+if not unchanged:
+    rotate()
+else:
+    note("session unchanged since the last save, not rotating")
+
+fd, tmp = tempfile.mkstemp(dir=STATE_DIR, prefix=".session.", suffix=".json")
+try:
+    with os.fdopen(fd, "w") as fh:
+        json.dump(session, fh, indent=2, sort_keys=True, ensure_ascii=False)
+        fh.write("\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, OUT)
+    # We are writing precisely because the machine is about to lose power, and
+    # os.replace alone orders the rename without making it durable.
+    dirfd = os.open(STATE_DIR, os.O_RDONLY)
+    try:
+        os.fsync(dirfd)
+    finally:
+        os.close(dirfd)
+except BaseException:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+    raise
+
+note("saved %s" % summary)
+print("hypr-session: saved %d windows (%d skipped) to %s"
+      % (len(windows), len(skipped), OUT))
+for s in skipped:
+    note("skipped %s (%s) -- add `%s` to apps.conf to keep it"
+         % (s["class"], s["title"][:40], s["add_this_line"]))
+PY
+}
+
+cmd_restore() {
+    parse_args "$@"
+    setup_hypr_env || { log "restore skipped: no Hyprland instance"; return 0; }
+
+    if [ ! -f "$SESSION_FILE" ]; then
+        log "restore skipped: no session file at $SESSION_FILE"
+        return 0
+    fi
+
+    mkdir -p "$STATE_DIR"
+    exec 8>"$STATE_DIR/restore.lock"
+    if ! flock -n 8; then
+        log "restore skipped: another restore is running"
+        return 0
+    fi
+
+    HYPR_SESSION_STATE_DIR="$STATE_DIR" \
+    HYPR_SESSION_FILE="$SESSION_FILE" \
+    HYPR_SESSION_SCHEMA="$SCHEMA_VERSION" \
+    HYPR_SESSION_MAX_AGE_DAYS="$MAX_AGE_DAYS" \
+    HYPR_SESSION_VERBOSE="$VERBOSE" \
+    HYPR_SESSION_DRY_RUN="$DRY_RUN" \
+    HYPR_SESSION_FORCE="$FORCE" \
+        python3 -                                          <<'PY'
+import json, os, re, shlex, socket, subprocess, sys, time
+
+STATE_DIR = os.environ["HYPR_SESSION_STATE_DIR"]
+SRC       = os.environ["HYPR_SESSION_FILE"]
+SCHEMA    = int(os.environ["HYPR_SESSION_SCHEMA"])
+MAX_AGE   = int(os.environ["HYPR_SESSION_MAX_AGE_DAYS"]) * 86400
+VERBOSE   = os.environ["HYPR_SESSION_VERBOSE"] == "1"
+DRY_RUN   = os.environ["HYPR_SESSION_DRY_RUN"] == "1"
+FORCE     = os.environ["HYPR_SESSION_FORCE"] == "1"
+
+READY_TIMEOUT = 20.0
+MAP_TIMEOUT   = 8.0
+
+# Classes that already carry a geometry rule in the repo's hypr/windows.lua
+# (float + persistent_size). Hyprland restores those sizes itself and stacking an
+# explicit size on persistent_size has undefined precedence, so the restore sets
+# only float and the workspace for these. Keep in step with that file.
+GEOMETRY_OWNED_ELSEWHERE = {
+    "org.telegram.desktop", "nwg-look", "org.pulseaudio.pavucontrol",
+    "blueman-manager", "whatsapp-electron", "bitwarden", "org.kde.dolphin",
+    "org.kde.ark", "1password", "xdg-desktop-portal-gtk",
+}
+TERMINALS = {"foot", "alacritty", "kitty", "ghostty"}
+
+# A session id goes into a shell command, so it is checked against the shape
+# Claude Code actually uses rather than trusted from the file.
+TRANSCRIPT_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
+
+def log(msg):
+    subprocess.run(["logger", "-t", "hypr-session", "--", msg],
+                   check=False, capture_output=True)
+    if VERBOSE or DRY_RUN:
+        print(msg, file=sys.stderr)
+
+def hyprctl_json(*args):
+    out = subprocess.run(["hyprctl", "-j", *args], capture_output=True, text=True)
+    if out.returncode != 0:
+        return None
+    try:
+        return json.loads(out.stdout)
+    except ValueError:
+        return None
+
+def hyprctl_eval(lua):
+    """hyprctl eval reports a Lua error with rc 7, unlike hyprctl dispatch which
+    prints ok and returns 0 whatever happens -- so this is the one call whose
+    exit code is worth reading."""
+    out = subprocess.run(["hyprctl", "eval", lua], capture_output=True, text=True)
+    if out.returncode != 0:
+        log("eval failed (rc %d): %s" % (out.returncode, out.stdout.strip() or out.stderr.strip()))
+        return False
+    return True
+
+def hyprctl_dispatch(lua):
+    subprocess.run(["hyprctl", "dispatch", lua], check=False, capture_output=True)
+
+
+# ----------------------------------------------------------------- preflight
+
+try:
+    with open(SRC) as fh:
+        session = json.load(fh)
+except (OSError, ValueError) as e:
+    log("restore skipped: cannot read %s (%s)" % (SRC, e))
+    raise SystemExit(0)
+
+if session.get("version") != SCHEMA:
+    log("restore skipped: session file is schema %s, this script speaks %d"
+        % (session.get("version"), SCHEMA))
+    raise SystemExit(0)
+
+age = int(time.time()) - session.get("saved_at_epoch", 0)
+if age > MAX_AGE and not FORCE:
+    log("restore skipped: session is %d days old" % (age // 86400))
+    raise SystemExit(0)
+
+try:
+    boot_id = open("/proc/sys/kernel/random/boot_id").read().strip()
+except OSError:
+    boot_id = "unknown"
+marker = os.path.join(STATE_DIR, "restored.%s" % boot_id)
+if os.path.exists(marker) and not FORCE and not DRY_RUN:
+    log("restore skipped: already restored this boot (--force to override)")
+    raise SystemExit(0)
+
+saved_host = session.get("host")
+this_host = socket.gethostname()
+cross_host = saved_host != this_host
+if cross_host:
+    log("session was saved on %s, restoring on %s: workspaces and relative "
+        "geometry only" % (saved_host, this_host))
+
+
+# --------------------------------------------------------- wait for readiness
+
+def monitor_names():
+    mons = hyprctl_json("monitors")
+    return sorted(m["name"] for m in mons) if mons else None
+
+def autostart_jobs_pending():
+    out = subprocess.run(["systemctl", "--user", "list-jobs", "--no-legend"],
+                         capture_output=True, text=True)
+    return "app-" in out.stdout
+
+def bar_layers_ready(names):
+    """The bar's layer surface is what sets each monitor's `reserved` area, and
+    monitor_h-relative geometry is computed against that. Not fatal if it never
+    appears -- a bar-less setup is legitimate."""
+    layers = hyprctl_json("layers")
+    if not layers:
+        return False
+    for name in names:
+        blob = json.dumps(layers.get(name, {}))
+        if "omarchy-bar" not in blob and "quickshell" not in blob:
+            return False
+    return True
+
+deadline = time.time() + READY_TIMEOUT
+names = None
+while time.time() < deadline:
+    names = monitor_names()
+    if names:
+        time.sleep(0.25)
+        if names == monitor_names():
+            break
+    time.sleep(0.25)
+
+if not names:
+    log("restore skipped: Hyprland is not answering after %.0fs" % READY_TIMEOUT)
+    raise SystemExit(0)
+
+while time.time() < deadline and not bar_layers_ready(names):
+    time.sleep(0.25)
+# Slack and Bitwarden are XDG autostart entries, so at login systemd is starting
+# them at the same moment as this hook. Waiting for those jobs is what lets the
+# already-running check below see them before they have a window.
+while time.time() < deadline and autostart_jobs_pending():
+    time.sleep(0.25)
+
+start_ws = (hyprctl_json("activeworkspace") or {}).get("id")
+
+
+# --------------------------------------------- what is already up or starting
+
+def running_inventory():
+    """classes is a count, not a set: mode=multi needs to know how many windows of
+    a class are actually up, and a per-window boolean would report N saved
+    terminals as N already running and never launch any of them."""
+    classes, per_ws, ids, chrome_profiles = {}, {}, set(), set()
+
+    for c in hyprctl_json("clients") or []:
+        k = (c.get("initialClass") or c.get("class") or "").lower()
+        if k:
+            classes[k] = classes.get(k, 0) + 1
+            wsid = (c.get("workspace") or {}).get("id")
+            per_ws[(k, wsid)] = per_ws.get((k, wsid), 0) + 1
+
+    out = subprocess.run(["systemctl", "--user", "list-units", "app-*",
+                          "--no-legend", "--all", "--plain"],
+                         capture_output=True, text=True)
+    for line in out.stdout.splitlines():
+        unit = line.split()[0] if line.split() else ""
+        m = re.match(r"app-(.+?)(?:-\d+|@autostart)?\.(?:scope|service)$", unit)
+        if not m:
+            continue
+        name = m.group(1)
+        if name.startswith("Hyprland-"):
+            name = re.sub(r"-[0-9a-f]{8}$", "", name[len("Hyprland-"):])
+        ids.add(re.sub(r"\\x([0-9a-fA-F]{2})",
+                       lambda mm: chr(int(mm.group(1), 16)), name))
+
+    # Chrome's profile is per process, and the default profile is the one with no
+    # --profile-directory at all, which no pgrep pattern can express. Match
+    # argv[0]'s basename exactly rather than searching for "chrome": every Chrome
+    # install also runs chrome_crashpad_handler, Slack ships its own under
+    # electron, and a stray node process can carry "chrome" in its path -- all of
+    # which would otherwise register as a running default profile and suppress a
+    # legitimate launch.
+    BROWSERS = {"chrome", "chromium", "google-chrome",
+                "google-chrome-stable", "chromium-browser"}
+    ps = subprocess.run(["ps", "-eo", "args="], capture_output=True, text=True)
+    for line in ps.stdout.splitlines():
+        argv0 = line.split(" ", 1)[0] if line.strip() else ""
+        if os.path.basename(argv0) not in BROWSERS or "--type=" in line:
+            continue
+        m = re.search(r"--profile-directory=(.*?)(?= --|$)", line)
+        chrome_profiles.add(m.group(1).strip() if m else "Default")
+
+    return classes, per_ws, ids, chrome_profiles
+
+run_classes, run_per_ws, run_ids, run_chrome = running_inventory()
+log("already up: %d windows across %d classes, %d app units, chrome profiles %s"
+    % (sum(run_classes.values()), len(run_classes), len(run_ids),
+       sorted(run_chrome) or "none"))
+
+def probe_matches(pattern):
+    if not pattern:
+        return False
+    return subprocess.run(["pgrep", "-f", pattern],
+                          capture_output=True).returncode == 0
+
+def is_running(w):
+    ch = w.get("chrome")
+    if ch:
+        return ch["profile_directory"] in run_chrome
+    if w.get("initial_class", "").lower() in run_classes:
+        return True
+    app = w.get("app")
+    if app and app in run_ids:
+        return True
+    return probe_matches(w.get("probe"))
+
+
+# --------------------------------------------------------------- build a plan
+
+def lua_string(text):
+    """A Lua long-bracket literal needs no escaping for spaces, quotes, $ or
+    backslashes, which is what Chrome's --profile-directory="Profile 1" and paths
+    with spaces need. Only an embedded ]] can break out."""
+    if "]]" in text:
+        return None
+    return "[[%s]]" % text
+
+def launch_command(w):
+    """Everything is launched through uwsm-app, which measurably carries
+    Hyprland's exec rules even though reading its source says it should not: it
+    writes to a pipe and wayland-wm-app-daemon spawns the app, so the PID chain
+    and environment that HL_EXEC_RULE_TOKEN depends on should be broken. It works
+    anyway, and it is the fast form -- `uwsm app` is python and costs a few
+    hundred ms per launch. Either form names the scope
+    app-Hyprland-<name>-<hex8>.scope, so passing -a <desktop-id> is what makes the
+    launcher identity survive into the next save."""
+    launch = list(w.get("launch") or [])
+    if not launch:
+        return None
+    if w.get("launch_confidence") == "low":
+        return None
+
+    cwd = w.get("cwd")
+    klass = w.get("initial_class", "").lower()
+    if klass in TERMINALS:
+        binary = "/usr/bin/%s" % klass
+        claude = w.get("claude") or {}
+        session_id = claude.get("session_id")
+        work = claude.get("cwd") or cwd
+
+        if not os.path.exists(binary) or not (work and os.path.isdir(work)):
+            return " ".join(shlex.quote(a) if " " in a else a for a in launch)
+
+        if session_id and TRANSCRIPT_RE.match(session_id):
+            # Through a login shell so claude resolves the same way it does in a
+            # real terminal (it is a mise shim), and `exec bash -i` afterwards so
+            # quitting claude leaves a shell rather than closing the window.
+            inner = "claude --resume %s; exec bash -i" % session_id
+            return "uwsm-app -a %s -- %s --working-directory=%s bash -lc '%s'" % (
+                klass, binary, work, inner)
+
+        return "uwsm-app -a %s -- %s --working-directory=%s" % (klass, binary, work)
+
+    ch = w.get("chrome")
+    if ch:
+        prof = ch["profile_directory"]
+        name = w.get("app") or "google-chrome"
+        return ('uwsm-app -a %s -- /usr/bin/google-chrome-stable '
+                '--profile-directory="%s" --restore-last-session' % (name, prof))
+
+    return " ".join(shlex.quote(a) if " " in a else a for a in launch)
+
+def rules_for(w):
+    ws = w["workspace"]["id"]
+    parts = ['workspace = "%s silent"' % ws]
+    if w.get("floating"):
+        parts.append("float = true")
+        rel = (w.get("geometry") or {}).get("relative")
+        if rel and w.get("initial_class", "").lower() not in GEOMETRY_OWNED_ELSEWHERE:
+            parts.append('size = { "(monitor_w*%s)", "(monitor_h*%s)" }' % (rel["w"], rel["h"]))
+            parts.append('move = { "(monitor_w*%s)", "(monitor_h*%s)" }' % (rel["x"], rel["y"]))
+    else:
+        parts.append("tile = true")
+    if w.get("pinned"):
+        parts.append("pin = true")
+    if w.get("fullscreen"):
+        parts.append("maximize = true")
+    return "{ %s }" % ", ".join(parts)
+
+windows = session.get("windows", [])
+plan, notes = [], []
+
+# One entry per Chrome profile: all its windows share a pid and a class, so
+# there is no per-window handle and no way to aim tabs at a workspace.
+chrome_done = set()
+groups = {}
+def render_key(w):
+    # Layout slot first: under custom_center the master is whichever window
+    # window_order puts first, which is not the oldest one once swapwithmaster has
+    # been used. Launching in creation order would demote it to a slave.
+    return (w["workspace"]["id"] or 0,
+            w.get("layout_slot") or 999,
+            str(w.get("stable_id") or ""))
+
+for w in sorted(windows, key=render_key):
+    ch = w.get("chrome")
+    if ch:
+        prof = ch["profile_directory"]
+        if prof in chrome_done:
+            continue
+        chrome_done.add(prof)
+        if is_running(w):
+            notes.append("chrome:%s already running, not launching" % prof)
+            continue
+        pinfo = next((p for p in session.get("chrome_profiles", [])
+                      if p["profile_directory"] == prof), None)
+        if pinfo and pinfo.get("primary_workspace"):
+            w = dict(w)
+            w["workspace"] = {"id": pinfo["primary_workspace"]}
+            w["_chrome_workspaces"] = pinfo.get("workspaces", [])
+        plan.append(w)
+        continue
+
+    key = w.get("matched_by")
+    groups.setdefault(key, []).append(w)
+
+for key, group in groups.items():
+    mode = group[0].get("mode", "single")
+    if mode == "single":
+        # Relaunching a single-instance app only pops a window onto the current
+        # workspace, so this is at most one launch, and none if it is already up.
+        running = 1 if any(is_running(w) for w in group) else 0
+        wanted = 0 if running else 1
+    else:
+        # Per workspace, not per class. A terminal open on another workspace is
+        # not one of these: counting globally let one live terminal suppress a
+        # launch on a workspace that had none.
+        klass = group[0].get("initial_class", "").lower()
+        by_ws = {}
+        for w in group:
+            by_ws.setdefault(w["workspace"]["id"], []).append(w)
+        for wsid, ws_group in sorted(by_ws.items(), key=lambda kv: kv[0] or 0):
+            running = run_per_ws.get((klass, wsid), 0)
+            wanted = max(0, len(ws_group) - running)
+            if wanted < len(ws_group):
+                notes.append("%s ws%s: %d saved, %d launching (multi, %d already up)"
+                             % (key, wsid, len(ws_group), wanted, running))
+            plan.extend(ws_group[:wanted])
+        continue
+    if wanted < len(group):
+        notes.append("%s: %d saved, %d launching (%s, %d already up)"
+                     % (key, len(group), wanted, mode, running))
+    plan.extend(group[:wanted])
+
+plan.sort(key=render_key)
+
+for n in notes:
+    log(n)
+
+
+# ------------------------------------------------------------------- executeon
+
+def window_count(klass, ws):
+    n = 0
+    for c in hyprctl_json("clients") or []:
+        k = (c.get("initialClass") or c.get("class") or "").lower()
+        if k == klass and (c.get("workspace") or {}).get("id") == ws:
+            n += 1
+    return n
+
+launched = skipped = 0
+for w in plan:
+    cmd = launch_command(w)
+    if not cmd:
+        log("skipping %s: no usable launch command (confidence %s)"
+            % (w.get("app"), w.get("launch_confidence")))
+        skipped += 1
+        continue
+    payload = lua_string(cmd)
+    if payload is None:
+        log("skipping %s: command cannot be quoted for Lua: %s" % (w.get("app"), cmd))
+        skipped += 1
+        continue
+
+    lua = "hl.exec_cmd(%s, %s)" % (payload, rules_for(w))
+    klass = w.get("initial_class", "").lower()
+    ws = w["workspace"]["id"]
+
+    if DRY_RUN:
+        print("hyprctl eval '%s'" % lua)
+        launched += 1
+        continue
+
+    before = window_count(klass, ws)
+    if not hyprctl_eval(lua):
+        skipped += 1
+        continue
+    launched += 1
+
+    # Sequential and blocking on purpose: custom-layout.lua builds window_order
+    # from arrival order and its state is empty at login, and dwindle's split
+    # tree is arrival-driven too, so the order windows appear in IS the tiling
+    # restore. Overlapping launches would trade that away for wall-clock.
+    deadline = time.time() + MAP_TIMEOUT
+    while time.time() < deadline:
+        if window_count(klass, ws) > before:
+            break
+        time.sleep(0.2)
+    else:
+        log("%s did not appear on ws%s within %.0fs, continuing"
+            % (w.get("app"), ws, MAP_TIMEOUT))
+
+if DRY_RUN:
+    print("\n# dry run: %d launches planned, %d unusable" % (launched, skipped),
+          file=sys.stderr)
+    raise SystemExit(0)
+
+
+# ------------------------- place windows we did not launch, and Chrome's extras
+
+def move_silent(address, ws):
+    hyprctl_dispatch('hl.dsp.window.move({ window = "address:%s", workspace = "%s", '
+                     'follow = false })' % (address, ws))
+
+for w in plan:
+    ch = w.get("chrome")
+    if not ch or not w.get("_chrome_workspaces"):
+        continue
+    # Chrome rebuilds its own window set from its own session file, so wait for
+    # the count to settle, then spread them positionally across the saved
+    # workspaces. Which window (and so which tabs) lands where is not
+    # guaranteed; only the shape of the layout is.
+    prof_class = w.get("initial_class", "").lower()
+    stable_since, last_n = time.time(), -1
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        cur = [c for c in hyprctl_json("clients") or []
+               if (c.get("initialClass") or "").lower() == prof_class]
+        if len(cur) != last_n:
+            last_n, stable_since = len(cur), time.time()
+        elif time.time() - stable_since > 1.5:
+            break
+        time.sleep(0.3)
+    cur.sort(key=lambda c: str(c.get("stableId") or ""))
+    targets = w["_chrome_workspaces"]
+    for i, c in enumerate(cur[1:], start=1):
+        if i < len(targets) and (c.get("workspace") or {}).get("id") != targets[i]:
+            move_silent(c["address"], targets[i])
+
+placed = 0
+live = {}
+for c in hyprctl_json("clients") or []:
+    live.setdefault((c.get("initialClass") or "").lower(), []).append(c)
+
+for w in windows:
+    if w.get("chrome"):
+        continue
+    # Only single-instance apps. Several windows of one class are
+    # indistinguishable from the outside, so "move a foot to the workspace this
+    # saved foot was on" can just as easily drag an unrelated terminal across the
+    # desktop -- which is worse than leaving it where the user put it.
+    if w.get("mode", "single") != "single":
+        continue
+    klass = w.get("initial_class", "").lower()
+    pool = live.get(klass, [])
+    if not pool:
+        continue
+    target = w["workspace"]["id"]
+    for c in pool:
+        if (c.get("workspace") or {}).get("id") != target:
+            move_silent(c["address"], target)
+            placed += 1
+            pool.remove(c)
+            break
+        pool.remove(c)
+        break
+
+
+# ------------------------------------ per-workspace custom_center master count
+
+CUSTOM_CENTER = "lua:custom_center"
+
+def live_center_order(wsid):
+    """The workspace's window_order, recovered from where the layout placed each
+    window. Inverts custom-layout.lua's placement the same way the save side
+    does."""
+    mons = {m.get("name"): m for m in hyprctl_json("monitors") or []}
+    cl = hyprctl_json("clients") or []
+    tiled = [c for c in cl if (c.get("workspace") or {}).get("id") == wsid
+             and c.get("mapped") and not c.get("floating")]
+    if not tiled:
+        return []
+    ws = next((w for w in hyprctl_json("workspaces") or []
+               if w.get("id") == wsid), {})
+    mon = mons.get(ws.get("monitor"), {})
+    mx, mw = mon.get("x", 0), (mon.get("width") or 1)
+    masters, left, right = [], [], []
+    for c in tiled:
+        cx = (c["at"][0] + c["size"][0] / 2.0 - mx) / mw
+        if 0.25 < cx < 0.75:
+            masters.append(c)
+        elif cx <= 0.25:
+            left.append(c)
+        else:
+            right.append(c)
+    masters.sort(key=lambda c: c["at"][0])
+    left.sort(key=lambda c: c["at"][1])
+    right.sort(key=lambda c: c["at"][1])
+    return masters + left + right
+
+for ws in session.get("workspaces", []):
+    if ws.get("tiled_layout") != CUSTOM_CENTER:
+        continue
+    want = ws.get("masters") or 1
+    if want < 2:
+        continue
+    wsid = ws["id"]
+
+    # `masters` lives only in custom-layout.lua's in-memory table, so the only way
+    # to set it is to replay addmaster. That dispatcher also promotes the FOCUSED
+    # window into the slot it just created, so focus the window that belongs there
+    # first: with window_order already correct from the launch order, the window at
+    # position i is the one that should be master i, and the layout skips the swap
+    # when the target is already in the requested slot.
+    for i in range(2, want + 1):
+        order = live_center_order(wsid)
+        if len(order) < i:
+            log("ws%s wanted %d masters but has %d tiled windows, stopping at %d"
+                % (wsid, want, len(order), i - 1))
+            break
+        hyprctl_dispatch('hl.dsp.focus({ window = "address:%s" })'
+                         % order[i - 1]["address"])
+        time.sleep(0.2)
+        hyprctl_dispatch('hl.dsp.layout("addmaster")')
+        time.sleep(0.3)
+
+    log("ws%s custom_center: replayed %d masters" % (wsid, want))
+
+
+# --------------------------------------------------------------- final focus
+
+now_ws = (hyprctl_json("activeworkspace") or {}).get("id")
+if now_ws == start_ws:
+    for m in session.get("monitors", []):
+        aw = (m.get("active_workspace") or {}).get("id")
+        if aw and m.get("name") in names:
+            hyprctl_dispatch('hl.dsp.focus({ workspace = "%s" })' % aw)
+else:
+    log("active workspace changed during restore, leaving focus alone")
+
+# Keyed on the boot id so a hand-run `omarchy-hook post-boot` is a no-op, but
+# that means one file per boot unless the stale ones are swept.
+for stale in os.listdir(STATE_DIR):
+    if stale.startswith("restored.") and stale != os.path.basename(marker):
+        try:
+            os.unlink(os.path.join(STATE_DIR, stale))
+        except OSError:
+            pass
+open(marker, "w").close()
+msg = "restored: %d launched, %d moved, %d skipped (session from %s, %dm old)" % (
+    launched, placed, skipped, session.get("trigger"), age // 60)
+log(msg)
+print("hypr-session: " + msg)
+PY
+}
+
+cmd_show() {
+    [ -f "$SESSION_FILE" ] || die "no session file at $SESSION_FILE"
+    python3 - "$SESSION_FILE" <<'PY'
+import json, sys, time
+d = json.load(open(sys.argv[1]))
+age = int(time.time()) - d.get("saved_at_epoch", 0)
+print("saved   %s (%dm ago) by %s on %s"
+      % (d.get("saved_at"), age // 60, d.get("trigger"), d.get("host")))
+print("windows %d saved, %d skipped" % (len(d.get("windows", [])), len(d.get("skipped", []))))
+for m in d.get("monitors", []):
+    print("  monitor %-10s %sx%s at %s,%s" % (m.get("name"), m.get("width"),
+                                              m.get("height"), m.get("x"), m.get("y")))
+for w in d.get("windows", []):
+    flag = "float" if w.get("floating") else "tile "
+    print("  ws%-3s %s %-22s %s" % (w["workspace"]["id"], flag,
+                                    w.get("app"), w.get("title", "")[:44]))
+for s in d.get("skipped", []):
+    print("  skipped %-20s %s" % (s.get("class"), s.get("add_this_line")))
+PY
+}
+
+# Runs at login as the guard unit's ExecStart, so a broken install shows up in
+# the journal then rather than silently at shutdown when nobody is watching.
+cmd_arm() {
+    setup_hypr_env || { log "arm: no Hyprland instance, guard will not save"; return 0; }
+    if hypr_ready; then
+        log "arm: hyprctl answering, session save is armed"
+    else
+        log "arm: hyprctl not answering, session save will not work"
+    fi
+    return 0
+}
+
+case "${1:-}" in
+    save)    shift; cmd_save "$@" ;;
+    restore) shift; cmd_restore "$@" ;;
+    show)    shift; cmd_show "$@" ;;
+    arm)     shift; cmd_arm "$@" ;;
+    ""|-h|--help) usage ;;
+    *)       die "unknown command: $1" ;;
+esac

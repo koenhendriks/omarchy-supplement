@@ -1,0 +1,61 @@
+[Unit]
+Description=Save the Hyprland window session while the compositor is still up
+Documentation=file:///home/koen/omarchy-supplement/README.md
+
+# Start ordering. The save shells out to hyprctl, which needs
+# HYPRLAND_INSTANCE_SIGNATURE in the user manager's environment. UWSM imports it
+# at `uwsm finalize`, and finalize is what makes wayland-wm@ go active, so this
+# is the earliest point at which a save could work at all.
+After=wayland-wm@hyprland.desktop.service
+
+# Stop ordering, which is the entire point of this unit. Stop order is the
+# reverse of start order, so the After= above is what puts this unit's ExecStop
+# BEFORE the compositor's own stop. It is not decoration: a target automatically
+# gains After= on everything in its Wants= (see
+# `systemctl --user show graphical-session.target -p After`, which lists
+# omarchy-sleep-lock.service for exactly this reason), so with PartOf= and
+# WantedBy= alone this unit and wayland-wm@ are both merely "after
+# graphical-session.target" on the way down, with no edge between them -- and
+# whether hyprctl still answers becomes a coin flip.
+#
+# After=graphical-session.target is the obvious-looking way to say this and is a
+# trap: combined with the WantedBy= below it is an ordering cycle, and systemd
+# breaks a cycle by dropping an edge of its own choosing.
+PartOf=graphical-session.target
+
+# No compositor, nothing to snapshot. This also keeps the unit, and therefore its
+# ExecStop, out of a plain SSH login's user manager. WAYLAND_DISPLAY is
+# deliberately not required: hyprctl needs only the signature and
+# XDG_RUNTIME_DIR (verified with `env -u WAYLAND_DISPLAY hyprctl -j version`).
+ConditionEnvironment=HYPRLAND_INSTANCE_SIGNATURE
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Verifies hyprctl answers and logs one line, so a broken install surfaces in the
+# journal at login rather than silently at shutdown when nobody is watching.
+ExecStart=%h/.local/bin/hypr-session arm
+
+# The net, for a shutdown that bypasses the Omarchy menu (`systemctl poweroff`
+# over ssh, or the power button). On the menu path the wrapper has already saved
+# seconds earlier, so --if-stale=20 makes this a no-op there.
+#
+# Be clear-eyed about what this can and cannot do: omarchy-system-shutdown runs
+# omarchy-hyprland-window-close-all before powering off, so on that path there is
+# nothing left to capture by design. And the window processes live in unordered
+# app.slice scopes with no ordering edge to this unit, so even on the ssh path
+# they may already be gone. hypr-session refuses to write a zero-window capture
+# when a snapshot already exists, which is what keeps a useless run here from
+# destroying a good one.
+ExecStop=%h/.local/bin/hypr-session save --trigger=session-stop --if-stale=20
+
+# Omarchy caps the whole user session teardown at 5s
+# (/etc/systemd/system/user@.service.d/faster-shutdown.conf). Take at most 3 of
+# them. That drop-in does not reach units inside the manager, so left unset this
+# would inherit the user manager's DefaultTimeoutStopSec of 90s and become the
+# unit that turns a shutdown into a 90-second hang.
+TimeoutStopSec=3s
+
+[Install]
+WantedBy=graphical-session.target
