@@ -585,8 +585,11 @@ for c in clients:
 
     if resolved_by == "chrome-window":
         # No profile here on purpose: see chrome_active_profiles(). The window
-        # contributes its workspace, and the profile list is built separately.
+        # contributes its workspace and slot, and the profile list is built
+        # separately. The label is the bare class rather than a per-profile
+        # launcher, which would imply an attribution that does not exist.
         rec["chrome"] = {"profile_directory": None}
+        rec["app"] = klass
 
     if rule["kind"] == "class" and klass.lower() in TERMINALS:
         cwd = terminal_cwd(pid)
@@ -603,28 +606,39 @@ for c in clients:
 # Which profile owned which window is not knowable (all of them share a pid), so
 # each profile is anchored to one of the workspaces the Chrome windows were on and
 # the restore spreads any extras.
-chrome_windows = [w for w in windows if w.get("chrome")]
-chrome_ws = [w["workspace"]["id"] for w in sorted(
-    chrome_windows, key=lambda w: (w["workspace"]["id"] or 0,
-                                   w.get("layout_slot") or 999))]
+chrome_windows = sorted(
+    [w for w in windows if w.get("chrome")],
+    key=lambda w: (w["workspace"]["id"] or 0, w.get("layout_slot") or 999))
+
+# Where the Chrome windows were, in the order the restore should fill them. The
+# slot matters as much as the workspace: a Chrome window that was a centre master
+# has to be launched in that position, because arrival order is what rebuilds the
+# custom_center order.
+chrome_targets = [{"workspace": w["workspace"]["id"], "slot": w.get("layout_slot")}
+                  for w in chrome_windows]
+
 allowed_profiles = [r["value"] for r in rules if r["kind"] == "chrome"]
 desktop_for = {r["value"]: r["desktop"] for r in rules if r["kind"] == "chrome"}
 
 chrome_profiles = {}
 if chrome_windows:
+    # One launch per profile, each anchored to a different saved window so two
+    # profiles do not both land on the same workspace. Any window Chrome opens
+    # beyond the anchors is spread over the remaining targets at restore time.
     for i, prof in enumerate(chrome_active_profiles()):
         if prof not in allowed_profiles:
             note("chrome profile %s has windows but is not in the allow-list" % prof)
             continue
+        tgt = chrome_targets[min(i, len(chrome_targets) - 1)]
         chrome_profiles[prof] = {
             "profile_directory": prof,
             "desktop_id": desktop_for.get(prof),
             "restore_last_session": True,
-            "primary_workspace": chrome_ws[i] if i < len(chrome_ws) else chrome_ws[0],
-            "workspaces": chrome_ws,
+            "primary_workspace": tgt["workspace"],
+            "primary_slot": tgt["slot"],
         }
-    note("chrome profiles with windows: %s (%d windows)"
-         % (sorted(chrome_profiles) or "none", len(chrome_windows)))
+    note("chrome: %d windows across profiles %s"
+         % (len(chrome_windows), sorted(chrome_profiles) or "none"))
 
 by_pid = {}
 for w in windows:
@@ -655,6 +669,7 @@ session = {
         "workspace": (active.get("workspace") or {}).get("id"),
     } if active else None,
     "workspaces": [ws_layout[k] for k in sorted(ws_layout)],
+    "chrome_targets": chrome_targets,
     "chrome_profiles": sorted(chrome_profiles.values(),
                               key=lambda p: p["profile_directory"]),
     # Ordered by layout slot, not creation order: under custom_center a window
@@ -776,7 +791,14 @@ DRY_RUN   = os.environ["HYPR_SESSION_DRY_RUN"] == "1"
 FORCE     = os.environ["HYPR_SESSION_FORCE"] == "1"
 
 READY_TIMEOUT = 20.0
-MAP_TIMEOUT   = 8.0
+
+# Generous, because this is what keeps the tiling order intact. Launches are
+# sequential and each one waits for its window before the next starts, so a
+# timeout here does not just delay a window -- it lets the NEXT app arrive first
+# and take the slot. Chrome's cold start was measured past 8s on this machine,
+# which is exactly how Teams ended up in Chrome's master slot. The restore runs
+# detached, so the extra wall clock costs nothing.
+MAP_TIMEOUT   = 25.0
 
 # Classes that already carry a geometry rule in the repo's hypr/windows.lua
 # (float + persistent_size). Hyprland restores those sizes itself and stacking an
@@ -1070,8 +1092,10 @@ if saved_chrome and live_chrome < len(saved_chrome):
         template["workspace"] = {"id": anchor}
         template["chrome"] = {"profile_directory": pinfo["profile_directory"]}
         template["app"] = pinfo.get("desktop_id") or "google-chrome"
-        template["_chrome_workspaces"] = pinfo.get("workspaces", [])
-        template["layout_slot"] = None
+        # Keeping the saved slot is what puts Chrome back in the middle of a
+        # custom_center workspace instead of at the end: dropping it sorted the
+        # launch last and left Chrome in a side quarter with the others shifted up.
+        template["layout_slot"] = pinfo.get("primary_slot")
         chrome_plan.append(template)
     if chrome_plan:
         notes.append("chrome: launching %d profile(s) %s for %d saved windows"
@@ -1188,30 +1212,34 @@ def move_silent(address, ws):
     hyprctl_dispatch('hl.dsp.window.move({ window = "address:%s", workspace = "%s", '
                      'follow = false })' % (address, ws))
 
-for w in plan:
-    ch = w.get("chrome")
-    if not ch or not w.get("_chrome_workspaces"):
-        continue
-    # Chrome rebuilds its own window set from its own session file, so wait for
-    # the count to settle, then spread them positionally across the saved
-    # workspaces. Which window (and so which tabs) lands where is not
-    # guaranteed; only the shape of the layout is.
-    prof_class = w.get("initial_class", "").lower()
-    stable_since, last_n = time.time(), -1
-    deadline = time.time() + 20
+# Chrome rebuilds its own window set from its own session files, and which of
+# those windows belongs to which profile is not observable, so they are spread
+# positionally over the workspaces the saved windows were on. Done once over every
+# Chrome window rather than per profile: they all share a class and a pid, so a
+# per-profile pass would move the other profile's windows and skip a window each
+# time round.
+chrome_targets = session.get("chrome_targets") or []
+if chrome_plan and chrome_targets:
+    stable_since, last_n, cur = time.time(), -1, []
+    deadline = time.time() + 25
     while time.time() < deadline:
         cur = [c for c in hyprctl_json("clients") or []
-               if (c.get("initialClass") or "").lower() == prof_class]
+               if (c.get("initialClass") or "").lower() in ("google-chrome", "chromium")]
         if len(cur) != last_n:
             last_n, stable_since = len(cur), time.time()
-        elif time.time() - stable_since > 1.5:
+        elif time.time() - stable_since > 2.0:
             break
         time.sleep(0.3)
+
     cur.sort(key=lambda c: str(c.get("stableId") or ""))
-    targets = w["_chrome_workspaces"]
-    for i, c in enumerate(cur[1:], start=1):
-        if i < len(targets) and (c.get("workspace") or {}).get("id") != targets[i]:
-            move_silent(c["address"], targets[i])
+    log("chrome: %d windows up for %d saved targets" % (len(cur), len(chrome_targets)))
+    for c, tgt in zip(cur, chrome_targets):
+        if (c.get("workspace") or {}).get("id") != tgt["workspace"]:
+            move_silent(c["address"], tgt["workspace"])
+    if len(cur) < len(chrome_targets):
+        log("chrome: %d fewer windows than saved; Chrome restores each profile's "
+            "own session and only the first launch starts the browser"
+            % (len(chrome_targets) - len(cur)))
 
 placed = 0
 live = {}

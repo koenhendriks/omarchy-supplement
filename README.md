@@ -309,11 +309,12 @@ running inside a terminal (the working directory and a claude session are
 restored, an arbitrary command is not). For Chrome, all windows of one profile
 share one process, so each profile that had windows is relaunched and rebuilds its
 own window set, but which profile's window lands on which workspace is
-best-effort. Only the first profile launched actually starts Chrome; the rest are
-forwarded to that running instance, and a forwarded restore was observed
-reopening one window for a profile whose last session had two. So a second
-profile with several windows can come back short, and `Ctrl + Shift + T` in it
-reopens the rest.
+best-effort: each profile is anchored to a different one of the workspaces the
+Chrome windows were on, and any window Chrome opens beyond those anchors is spread
+over the rest. Only the first profile launched actually starts Chrome; the others
+are forwarded to that running instance. Chrome restores each profile from that
+profile's own session file, so a profile whose session records one window comes
+back with one, and `Ctrl + Shift + T` reopens what it has forgotten.
 
 ## VPNs
 
@@ -775,3 +776,18 @@ line, collected here so it is findable.
   -- observed, on the terminal this was being developed in. For the same reason the
   already-running count for a `mode=multi` app has to be per workspace: one live
   terminal elsewhere otherwise suppresses a launch on a workspace that had none.
+- **The map timeout is what holds a tiled layout together, not just a delay.**
+  Launches are sequential and each waits for its window before the next starts, so
+  a window that times out does not merely arrive late: the *next* app arrives first
+  and takes its slot. Chrome's cold start measured past 8s here, which is how Teams
+  ended up in Chrome's centre-master slot on a restored workspace while everything
+  else looked right. The wait is 25s now, and the restore is detached so the wall
+  clock costs nothing.
+- **A Chrome launch has to carry the slot of the window it stands in for.**
+  Chrome is planned per profile rather than per window, and building that plan
+  without the saved slot sorted the launch last on its workspace, quietly shifting
+  every other window up one position.
+- **Spreading Chrome's windows has to be one pass over all of them.** Doing it per
+  profile looks natural and is wrong twice over: all profiles share a class and a
+  pid, so each pass sees and moves the *other* profile's windows, and a pass that
+  skips its own anchor skips a different window each time round.
