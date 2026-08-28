@@ -249,26 +249,29 @@ def cmdline(pid):
     except OSError:
         return []
 
-def chrome_profile(pid):
-    """Chrome omits --profile-directory for the default profile, so its absence
-    is meaningful rather than an error.
+CHROME_CONFIG = os.path.expanduser("~/.config/google-chrome")
+CHROME_CLASSES = ("google-chrome", "chromium")
 
-    Two shapes have to be handled. Most apps keep a NUL-separated argv, but
-    Chrome rewrites its own into a single space-joined blob for the process
-    title, so the per-argument scan finds nothing there and would report every
-    window as Default. Fall back to searching the joined text, ending the value
-    at the next " --" because a profile directory may contain a space
-    ("Profile 1")."""
-    args = cmdline(pid)
-    for arg in args:
-        a = arg.decode("utf-8", "replace")
-        if a.startswith("--profile-directory="):
-            return a.split("=", 1)[1]
-    text = b" ".join(args).decode("utf-8", "replace")
-    m = re.search(r"--profile-directory=(.*?)(?= --|$)", text)
-    if m and m.group(1).strip():
-        return m.group(1).strip()
-    return "Default"
+def chrome_active_profiles():
+    """Which Chrome profiles currently have windows.
+
+    Not readable from the windows themselves: Chrome runs one browser process per
+    user-data-dir and --profile-directory only picks a profile inside it, so every
+    window of every profile reports the SAME pid and the same cmdline. Verified by
+    launching a second profile while Chrome was up -- the new window came back with
+    the original pid, and the cmdline still named the first profile. Reading the
+    flag per window therefore attributes every window to whichever profile
+    happened to start the process, which silently drops the others from the save.
+
+    Chrome's own Local State is the source of truth, and it is updated as soon as a
+    profile gains a window."""
+    try:
+        with open(os.path.join(CHROME_CONFIG, "Local State")) as fh:
+            state = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    active = state.get("profile", {}).get("last_active_profiles") or []
+    return [p for p in active if isinstance(p, str)]
 
 def descendants(pid, depth=6):
     out, frontier = [], [pid]
@@ -486,11 +489,10 @@ def matcher_for(entry_id, klass, pid):
         for r in rules:
             if r["kind"] == "id" and r["value"] == entry_id:
                 return r, "cgroup", None, entry_id
-    if klass.lower() in ("google-chrome", "chromium"):
-        prof = chrome_profile(pid)
+    if klass.lower() in CHROME_CLASSES:
         for r in rules:
-            if r["kind"] == "chrome" and r["value"] == prof:
-                return r, "chrome-cmdline", prof, r["desktop"]
+            if r["kind"] == "chrome":
+                return r, "chrome-window", None, r["desktop"]
     for r in rules:
         if r["kind"] == "class" and r["value"].lower() == klass.lower():
             return r, "class", None, r["desktop"]
@@ -581,15 +583,10 @@ for c in clients:
         "pid": pid,
     }
 
-    if prof is not None:
-        rec["chrome"] = {"profile_directory": prof}
-        p = chrome_profiles.setdefault(prof, {
-            "profile_directory": prof,
-            "desktop_id": rule["desktop"],
-            "restore_last_session": True,
-            "workspaces": [],
-        })
-        p["workspaces"].append(ws.get("id"))
+    if resolved_by == "chrome-window":
+        # No profile here on purpose: see chrome_active_profiles(). The window
+        # contributes its workspace, and the profile list is built separately.
+        rec["chrome"] = {"profile_directory": None}
 
     if rule["kind"] == "class" and klass.lower() in TERMINALS:
         cwd = terminal_cwd(pid)
@@ -602,16 +599,32 @@ for c in clients:
 
     windows.append(rec)
 
-# All windows of one Chrome profile share a pid and a class, so there is no
-# per-window handle and no way to say which window held which tabs. Restore
-# rebuilds the set and anchors it to the most recently focused window's
-# workspace; record that here.
-for p in chrome_profiles.values():
-    focus = [w for w in windows
-             if w.get("chrome", {}).get("profile_directory") == p["profile_directory"]]
-    focus.sort(key=lambda w: w.get("focus_history_id") or 0)
-    p["primary_workspace"] = focus[0]["workspace"]["id"] if focus else None
-    p["windows"] = len(focus)
+# One entry per profile that actually had windows, ordered as Chrome lists them.
+# Which profile owned which window is not knowable (all of them share a pid), so
+# each profile is anchored to one of the workspaces the Chrome windows were on and
+# the restore spreads any extras.
+chrome_windows = [w for w in windows if w.get("chrome")]
+chrome_ws = [w["workspace"]["id"] for w in sorted(
+    chrome_windows, key=lambda w: (w["workspace"]["id"] or 0,
+                                   w.get("layout_slot") or 999))]
+allowed_profiles = [r["value"] for r in rules if r["kind"] == "chrome"]
+desktop_for = {r["value"]: r["desktop"] for r in rules if r["kind"] == "chrome"}
+
+chrome_profiles = {}
+if chrome_windows:
+    for i, prof in enumerate(chrome_active_profiles()):
+        if prof not in allowed_profiles:
+            note("chrome profile %s has windows but is not in the allow-list" % prof)
+            continue
+        chrome_profiles[prof] = {
+            "profile_directory": prof,
+            "desktop_id": desktop_for.get(prof),
+            "restore_last_session": True,
+            "primary_workspace": chrome_ws[i] if i < len(chrome_ws) else chrome_ws[0],
+            "workspaces": chrome_ws,
+        }
+    note("chrome profiles with windows: %s (%d windows)"
+         % (sorted(chrome_profiles) or "none", len(chrome_windows)))
 
 by_pid = {}
 for w in windows:
@@ -923,29 +936,21 @@ def running_inventory():
         ids.add(re.sub(r"\\x([0-9a-fA-F]{2})",
                        lambda mm: chr(int(mm.group(1), 16)), name))
 
-    # Chrome's profile is per process, and the default profile is the one with no
-    # --profile-directory at all, which no pgrep pattern can express. Match
-    # argv[0]'s basename exactly rather than searching for "chrome": every Chrome
-    # install also runs chrome_crashpad_handler, Slack ships its own under
-    # electron, and a stray node process can carry "chrome" in its path -- all of
-    # which would otherwise register as a running default profile and suppress a
-    # legitimate launch.
-    BROWSERS = {"chrome", "chromium", "google-chrome",
-                "google-chrome-stable", "chromium-browser"}
-    ps = subprocess.run(["ps", "-eo", "args="], capture_output=True, text=True)
-    for line in ps.stdout.splitlines():
-        argv0 = line.split(" ", 1)[0] if line.strip() else ""
-        if os.path.basename(argv0) not in BROWSERS or "--type=" in line:
-            continue
-        m = re.search(r"--profile-directory=(.*?)(?= --|$)", line)
-        chrome_profiles.add(m.group(1).strip() if m else "Default")
+    # Deliberately NOT trying to work out which profiles are up. All Chrome
+    # windows of all profiles share one browser process and one cmdline, so the
+    # flag names only whichever profile started it. The live window count is the
+    # signal used instead (see the chrome block below).
+    for c in hyprctl_json("clients") or []:
+        if (c.get("initialClass") or "").lower() in ("google-chrome", "chromium"):
+            chrome_profiles.add("__window__")
 
     return classes, per_ws, ids, chrome_profiles
 
 run_classes, run_per_ws, run_ids, run_chrome = running_inventory()
-log("already up: %d windows across %d classes, %d app units, chrome profiles %s"
-    % (sum(run_classes.values()), len(run_classes), len(run_ids),
-       sorted(run_chrome) or "none"))
+live_chrome = sum(n for k, n in run_classes.items()
+                  if k in ("google-chrome", "chromium"))
+log("already up: %d windows across %d classes, %d app units, %d chrome windows"
+    % (sum(run_classes.values()), len(run_classes), len(run_ids), live_chrome))
 
 def probe_matches(pattern):
     if not pattern:
@@ -954,9 +959,8 @@ def probe_matches(pattern):
                           capture_output=True).returncode == 0
 
 def is_running(w):
-    ch = w.get("chrome")
-    if ch:
-        return ch["profile_directory"] in run_chrome
+    if w.get("chrome"):
+        return live_chrome > 0
     if w.get("initial_class", "").lower() in run_classes:
         return True
     app = w.get("app")
@@ -1012,9 +1016,12 @@ def launch_command(w):
         return "uwsm-app -a %s -- %s --working-directory=%s" % (klass, binary, work)
 
     ch = w.get("chrome")
-    if ch:
+    if ch and ch.get("profile_directory"):
         prof = ch["profile_directory"]
         name = w.get("app") or "google-chrome"
+        # Verified to work even when Chrome is already running: the invocation is
+        # forwarded to the existing instance, which opens that profile and
+        # restores its own last session.
         return ('uwsm-app -a %s -- /usr/bin/google-chrome-stable '
                 '--profile-directory="%s" --restore-last-session' % (name, prof))
 
@@ -1040,10 +1047,6 @@ def rules_for(w):
 windows = session.get("windows", [])
 plan, notes = [], []
 
-# One entry per Chrome profile: all its windows share a pid and a class, so
-# there is no per-window handle and no way to aim tabs at a workspace.
-chrome_done = set()
-groups = {}
 def render_key(w):
     # Layout slot first: under custom_center the master is whichever window
     # window_order puts first, which is not the oldest one once swapwithmaster has
@@ -1052,25 +1055,38 @@ def render_key(w):
             w.get("layout_slot") or 999,
             str(w.get("stable_id") or ""))
 
-for w in sorted(windows, key=render_key):
-    ch = w.get("chrome")
-    if ch:
-        prof = ch["profile_directory"]
-        if prof in chrome_done:
-            continue
-        chrome_done.add(prof)
-        if is_running(w):
-            notes.append("chrome:%s already running, not launching" % prof)
-            continue
-        pinfo = next((p for p in session.get("chrome_profiles", [])
-                      if p["profile_directory"] == prof), None)
-        if pinfo and pinfo.get("primary_workspace"):
-            w = dict(w)
-            w["workspace"] = {"id": pinfo["primary_workspace"]}
-            w["_chrome_workspaces"] = pinfo.get("workspaces", [])
-        plan.append(w)
-        continue
+groups = {}
+saved_chrome = [w for w in windows if w.get("chrome")]
 
+# One launch per profile that had windows. Every Chrome window shares a process,
+# so a profile cannot be matched to a window and the count is the only guard: if
+# there are already at least as many Chrome windows up as were saved, the restore
+# has nothing to add and a launch would only pile on duplicates.
+chrome_plan = []
+if saved_chrome and live_chrome < len(saved_chrome):
+    for pinfo in session.get("chrome_profiles", []):
+        anchor = pinfo.get("primary_workspace") or saved_chrome[0]["workspace"]["id"]
+        template = dict(saved_chrome[0])
+        template["workspace"] = {"id": anchor}
+        template["chrome"] = {"profile_directory": pinfo["profile_directory"]}
+        template["app"] = pinfo.get("desktop_id") or "google-chrome"
+        template["_chrome_workspaces"] = pinfo.get("workspaces", [])
+        template["layout_slot"] = None
+        chrome_plan.append(template)
+    if chrome_plan:
+        notes.append("chrome: launching %d profile(s) %s for %d saved windows"
+                     % (len(chrome_plan),
+                        [c["chrome"]["profile_directory"] for c in chrome_plan],
+                        len(saved_chrome)))
+elif saved_chrome:
+    notes.append("chrome: %d windows already up for %d saved, not launching"
+                 % (live_chrome, len(saved_chrome)))
+
+plan.extend(chrome_plan)
+
+for w in sorted(windows, key=render_key):
+    if w.get("chrome"):
+        continue
     key = w.get("matched_by")
     groups.setdefault(key, []).append(w)
 

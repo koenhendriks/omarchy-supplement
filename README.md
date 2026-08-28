@@ -307,8 +307,13 @@ Deliberately not restored: which project PhpStorm had open (only the IDE knows),
 the channel or view inside Slack and Teams, and any other program that was
 running inside a terminal (the working directory and a claude session are
 restored, an arbitrary command is not). For Chrome, all windows of one profile
-share a process, so the *set* of windows and their tabs come back but which window
-lands on which workspace is not guaranteed.
+share one process, so each profile that had windows is relaunched and rebuilds its
+own window set, but which profile's window lands on which workspace is
+best-effort. Only the first profile launched actually starts Chrome; the rest are
+forwarded to that running instance, and a forwarded restore was observed
+reopening one window for a profile whose last session had two. So a second
+profile with several windows can come back short, and `Ctrl + Shift + T` in it
+reopens the rest.
 
 ## VPNs
 
@@ -673,6 +678,19 @@ line, collected here so it is findable.
   set `TimeoutStopSec=`: Omarchy caps the whole session teardown at 5s via a
   `user@.service` drop-in, but that drop-in does not reach units *inside* the
   manager, which would otherwise inherit 90s and hang the shutdown.
+- **Every Chrome window of every profile shares one process, so a window cannot
+  be attributed to a profile.** Chrome runs one browser process per
+  *user-data-dir*, and `--profile-directory` only selects a profile inside it, so
+  the flag on the process names whichever profile happened to start it. Launching a
+  second profile while Chrome is up returns a window with the *original* pid and
+  leaves the cmdline unchanged. Reading the flag per window therefore files every
+  window under one profile and silently drops the rest from the save, which is
+  exactly how two windows went missing after a reboot. `profile.last_active_profiles`
+  in `~/.config/google-chrome/Local State` is the real source for which profiles
+  have windows, and it updates as soon as one gains a window. The upside is that
+  `--profile-directory=X --restore-last-session` works even when Chrome is already
+  running: the invocation is forwarded to the live instance, which opens that
+  profile and restores its own session.
 - **Chrome collapses its whole argv into one blob, so the obvious way to read its
   profile finds nothing.** Every other app keeps a NUL-separated
   `/proc/<pid>/cmdline`, but Chrome rewrites its own for the process title. Scanning
