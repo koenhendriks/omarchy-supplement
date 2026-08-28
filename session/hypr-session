@@ -1041,11 +1041,17 @@ def launch_command(w):
     if ch and ch.get("profile_directory"):
         prof = ch["profile_directory"]
         name = w.get("app") or "google-chrome"
-        # Verified to work even when Chrome is already running: the invocation is
-        # forwarded to the existing instance, which opens that profile and
-        # restores its own last session.
+        # --restore-last-session only on the launch that actually starts Chrome.
+        # Every later profile is forwarded to the running instance, and there the
+        # flag produces a single blank window instead of a restore -- measured: a
+        # profile whose session held two windows and six tabs came back with one
+        # window and one tab. Opening the same profile WITHOUT the flag lets
+        # Chrome run its own per-profile session restore, which does reopen every
+        # window. That restore is governed by the profile's own "Continue where
+        # you left off" setting, so a profile without it still comes back blank.
+        flag = " --restore-last-session" if w.get("_chrome_first") else ""
         return ('uwsm-app -a %s -- /usr/bin/google-chrome-stable '
-                '--profile-directory="%s" --restore-last-session' % (name, prof))
+                '--profile-directory="%s"%s' % (name, prof, flag))
 
     return " ".join(shlex.quote(a) if " " in a else a for a in launch)
 
@@ -1097,6 +1103,12 @@ if saved_chrome and live_chrome < len(saved_chrome):
         # launch last and left Chrome in a side quarter with the others shifted up.
         template["layout_slot"] = pinfo.get("primary_slot")
         chrome_plan.append(template)
+
+    # Whichever profile is launched first cold-starts the browser, so it is the
+    # only one that may carry --restore-last-session.
+    if chrome_plan:
+        first = min(chrome_plan, key=render_key)
+        first["_chrome_first"] = True
     if chrome_plan:
         notes.append("chrome: launching %d profile(s) %s for %d saved windows"
                      % (len(chrome_plan),

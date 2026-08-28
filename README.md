@@ -311,10 +311,14 @@ share one process, so each profile that had windows is relaunched and rebuilds i
 own window set, but which profile's window lands on which workspace is
 best-effort: each profile is anchored to a different one of the workspaces the
 Chrome windows were on, and any window Chrome opens beyond those anchors is spread
-over the rest. Only the first profile launched actually starts Chrome; the others
-are forwarded to that running instance. Chrome restores each profile from that
-profile's own session file, so a profile whose session records one window comes
-back with one, and `Ctrl + Shift + T` reopens what it has forgotten.
+over the rest.
+
+**Enable "Continue where you left off" in every Chrome profile you want restored**
+(`chrome://settings/onStartup`, per profile). Only the first profile launched
+starts the browser and gets `--restore-last-session`; every later profile is
+forwarded to that running instance, where its windows come back only if the
+profile restores its own session. Without the setting, a second profile opens
+blank.
 
 ## VPNs
 
@@ -791,3 +795,14 @@ line, collected here so it is findable.
   profile looks natural and is wrong twice over: all profiles share a class and a
   pid, so each pass sees and moves the *other* profile's windows, and a pass that
   skips its own anchor skips a different window each time round.
+- **A forwarded `--restore-last-session` opens a blank window instead of
+  restoring.** Only the first Chrome invocation starts the browser; every later
+  one is handed to the running instance over its singleton socket. Passing the
+  flag there produced one window with one tab for a profile whose session held two
+  windows and six tabs. Opening the same profile *without* the flag let Chrome run
+  its own per-profile session restore, which reopened every window. So the flag
+  belongs only on the launch that cold-starts Chrome, and the rest rely on the
+  profile's "Continue where you left off" setting -- which is per profile, and a
+  profile without it comes back blank either way. Tested and rejected on the way
+  there: one launch with no `--profile-directory` at all, hoping Chrome would
+  reopen everything in `last_active_profiles`. It opens a single blank window.
