@@ -45,6 +45,7 @@ install down first, then add packages, then layer config on top.
 | `install-yaak.sh` | Yaak, with a WebKitGTK workaround in its desktop entry |
 | `install-wifiman.sh` | WifiMan Desktop, with the same WebKitGTK workaround |
 | `install-opendeck.sh` | OpenDeck (Stream Deck), plus a udev reload the pacman hook misses |
+| `install-logiops.sh` | logiops, plus a config turning the MX Master 3's thumb button into a workspace switch |
 | `install-chrome-profiles.sh` | Per-profile Chrome launchers (`koen`, `yourhosting`) |
 | `install-le-ca.sh` | Let's Encrypt roots into the system trust store |
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
@@ -806,3 +807,50 @@ line, collected here so it is findable.
   profile without it comes back blank either way. Tested and rejected on the way
   there: one launch with no `--profile-directory` at all, hoping Chrome would
   reopen everything in `last_active_profiles`. It opens a single blank window.
+- **The MX Master's thumb button sends a canned `SUPER + TAB`, not a button.**
+  Logitech's internal name for it is `App_Switch_Gesture`, and that is literally
+  all it does: `evtest` on the Bluetooth node shows `KEY_LEFTMETA` + `KEY_TAB`
+  and nothing else. It reports no button code of its own and -- the part that
+  actually decides the design -- no direction, so holding it and moving the mouse
+  is indistinguishable from clicking it. Nothing at the evdev layer can bind a
+  hold-and-move gesture to it; the button (`cid` `0xc3`) has to be diverted over
+  HID++ first so the mouse starts reporting raw XY of its own, which is what
+  `logiops/logid.cfg` sets up.
+  The reason it appeared to already work is a coincidence worth spelling out:
+  Omarchy binds `SUPER + TAB` to "Next workspace", so the firmware keystroke was
+  cycling workspaces by accident. Diverting the button takes that away, which is
+  why the config binds a movement-free press (`direction: "None"`) back to
+  `SUPER + TAB`.
+- **The gestures fire on release, so they step rather than glide.**
+  One gesture is one workspace, with no way to make it 1:1 with the mouse.
+  Hyprland's smooth workspace drag is driven by libinput *touchpad swipe* events
+  and there is no mouse-button equivalent to feed it -- the three- and
+  four-finger gestures in `hypr/input.lua` are the only place that smoothness is
+  available. Worth knowing before trying to tune it: the jump is inherent, not a
+  setting that was missed.
+- **`hyprctl dispatch` takes Lua now, and old-style argument lists fail.**
+  Quattro's Hyprland wraps whatever follows `dispatch` as `return hl.dispatch(...)`
+  and evaluates it, so the shell-style `hyprctl dispatch workspace e+1` -- correct
+  for years -- dies with `')' expected near 'e'`. That is a *Lua parse error*
+  about a command that looks nothing like Lua, which is why it reads as
+  nonsense. Quoting does not rescue it: `hyprctl dispatch '"workspace", "e+1"'`
+  parses and then fails with
+  `hl.dispatch: expected a dispatcher (e.g. hl.dsp.window.close())`. The working
+  form is the same dispatcher object the Lua config already uses:
+  `hyprctl dispatch 'hl.dsp.focus({ workspace = "e+1" })'`. Find the right one by
+  grepping `/usr/share/omarchy/default/hypr/bindings/` for the binding you want
+  to imitate rather than guessing at the namespace.
+  This cost a whole debugging session, because every layer underneath it was
+  working perfectly and said so: the button was diverted, the mouse reported raw
+  XY, the gesture matched its rule, and the daemon logged that it had run the
+  command. The failure was one line on the daemon's stderr, which nothing was
+  reading. When a chain like this "does nothing", check the far end first.
+- **Prefer synthesised keystrokes over shelling out to `hyprctl`.**
+  `logid` runs as a root system service with no `HYPRLAND_INSTANCE_SIGNATURE`, so
+  it cannot reach the compositor socket at all -- but even with the environment
+  handed to it, `hyprctl` is a moving target (see above) that fails at the end of
+  a chain with nothing checking its exit status. `Keypress` actions inject real
+  events through uinput, so the gestures ride Omarchy's own `SUPER + TAB`
+  bindings and keep working through any future change to `hyprctl`'s grammar.
+  The same argument applies to anything else tempted to drive Hyprland from a
+  daemon.

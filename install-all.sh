@@ -62,6 +62,7 @@ fi
 . ./install-yaak.sh
 . ./install-wifiman.sh
 . ./install-opendeck.sh
+. ./install-logiops.sh
 . ./install-chrome-profiles.sh
 . ./install-le-ca.sh
 . ./install-openvpn.sh
