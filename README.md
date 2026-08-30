@@ -62,7 +62,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `install-session.sh` | Installs `hypr-session`, its post-boot hook and shutdown-save guard, and rewrites the menu's shutdown rows |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
-| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input) |
+| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
 | `session/` | The `hypr-session` tool, its allow-list, its post-boot hook and its systemd guard unit |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
