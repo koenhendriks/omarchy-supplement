@@ -37,6 +37,25 @@ if [ ${#OVERRIDE_FILES[@]} -eq 0 ]; then
     exit 1
 fi
 
+# Retiring an override leaves its load line behind, and dofile() on a file that
+# is no longer there is a hard error that takes the whole Hyprland config with
+# it -- not just the missing override. Prune before adding, so a removed file
+# self-heals on the next run instead of breaking the desktop at the next reload.
+while IFS= read -r stale_line; do
+    [ -n "$stale_line" ] || continue
+
+    stale_target="${stale_line#dofile(\"}"
+    stale_target="${stale_target%\")}"
+
+    if [ ! -f "$stale_target" ]; then
+        echo "Removing load line for missing $(basename "$stale_target") from $HYPRLAND_CONFIG"
+        # grep -Fxv, not sed: the path is data and would otherwise be read as a
+        # pattern, and it contains characters that are meaningful in one.
+        grep -Fxv "$stale_line" "$HYPRLAND_CONFIG" > "$HYPRLAND_CONFIG.pruned"
+        mv "$HYPRLAND_CONFIG.pruned" "$HYPRLAND_CONFIG"
+    fi
+done < <(grep -F "dofile(\"$OVERRIDES_DIR/" "$HYPRLAND_CONFIG" || true)
+
 # dofile() rather than require(): these live outside package.path, and dofile
 # re-reads the file on every `hyprctl reload` instead of serving a cached module.
 for override in "${OVERRIDE_FILES[@]}"; do
