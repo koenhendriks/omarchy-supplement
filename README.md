@@ -60,6 +60,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
+| `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin and points it at the work Jira |
 | `install-session.sh` | Installs `hypr-session`, its post-boot hook and shutdown-save guard, and rewrites the menu's shutdown rows |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel) |
@@ -247,6 +248,16 @@ stock menu in place while `omarchy plugin list` still shows the plugin.
 Because it is also a bar widget, the layout fragment names it rather than
 `omarchy.menu` for the Omarchy button — see below.
 
+**Jira tickets open from the menu** through
+[koenhendriks/omarchy-menu-jira-plugin](https://github.com/koenhendriks/omarchy-menu-jira-plugin),
+installed by `install-omarchy-jira-plugin.sh`. Typing an issue key such as
+`SWD-16967` puts one row on top that opens `<baseUrl>/browse/SWD-16967` in the
+default browser; anything that is not an issue key leaves the results alone.
+That plugin is a `service` rather than a second clone of the menu, because only
+one clone can *be* the menu (see below), and a clone would have displaced the
+calculator. Its base URL and the project keys it answers for live on its own
+entry in `shell.json`, which the installer writes and the shell rereads on save.
+
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
 and stay at Omarchy's defaults.
@@ -390,6 +401,22 @@ line, collected here so it is findable.
   button reappears by itself — but it reinserts it *after* `omarchy.workspaces`
   rather than where it was, so `install-omarchy-calculator-plugin.sh` runs before
   `install-omarchy-shell.sh` and the layout merge puts it back at the front.
+- **Only one plugin can *be* the menu, and only a service can add rows to
+  whichever one that is.** `resolveEnabledId()` walks `installedPlugins` and
+  returns the first enabled plugin declaring `clonedFrom: omarchy.menu`, so two
+  clones that each add a search row do not compose: one of them wins, and which
+  one is decided by map iteration order rather than by anything a user set. A
+  `service` plugin composes instead. It is handed `shell`, and
+  `shell.panelLoaders[resolveEnabledId("omarchy.menu")].item` is the live menu
+  whichever plugin is providing it, whose `items` and `itemOrder` accept an
+  injected row exactly the way the menu's own providers hand theirs over. That is
+  what lets the Jira plugin sit alongside the calculator clone instead of
+  replacing it. The catch is reloading: `_syncServices()` mounts a service once
+  and skips any id already in `_services`, so saving a service's QML reloads
+  nothing, and neither does `omarchy-shell shell rescanPlugins`. A code change
+  needs `omarchy restart shell` while a *settings* change, read off `shellConfig`,
+  is live on save, which makes an edit that does nothing look like a broken
+  plugin rather than a stale one.
 - **There is no per-app mute anywhere in the shell.** `notifications.json` is
   `{version, dnd}` and that is the whole of it; the only per-app list in
   `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and

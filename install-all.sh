@@ -76,6 +76,7 @@ fi
 . ./install-omarchy-spotify-plugin.sh
 . ./install-omarchy-shell.sh
 . ./install-omarchy-notification-plugin.sh
+. ./install-omarchy-jira-plugin.sh
 # After the Chrome per-profile launchers and the menu plugin: the restore relies
 # on the former, and the shutdown rows are merged into the latter's config.
 . ./install-session.sh
