@@ -60,7 +60,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
-| `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin and points it at the work Jira |
+| `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin, points it at the work Jira and hands it the API token from `.env` |
 | `install-session.sh` | Installs `hypr-session`, its post-boot hook and shutdown-save guard, and rewrites the menu's shutdown rows |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel) |
@@ -255,8 +255,17 @@ installed by `install-omarchy-jira-plugin.sh`. Typing an issue key such as
 default browser; anything that is not an issue key leaves the results alone.
 That plugin is a `service` rather than a second clone of the menu, because only
 one clone can *be* the menu (see below), and a clone would have displaced the
-calculator. Its base URL and the project keys it answers for live on its own
-entry in `shell.json`, which the installer writes and the shell rereads on save.
+calculator. Its settings live on its own entry in `shell.json`, which the
+installer writes and the shell rereads on save.
+
+Those settings include an Atlassian API token, which is what turns the row from
+a URL builder into something that knows about the Jira on the other end: the
+projects the account can see become the filter, cached for a day under
+`~/.cache/omarchy-menu-jira/`, and the ticket's title becomes the row's second
+line. Hence `projects` being empty in the installer rather than listing `SWD`:
+34 projects fetched from Jira is a better list than one maintained here. The
+token comes out of `.env` (see [Secrets](#secrets)); with no token in there the
+plugin still opens tickets and simply asks Jira nothing.
 
 **Idle** is no longer overridden here. Omarchy 4 (quattro) removed hypridle
 entirely; idle timings now live in `~/.config/omarchy/shell.json` under `idle`,
@@ -350,9 +359,12 @@ disconnects. [vpn/README.md](vpn/README.md) covers the conversion details.
 
 ## Secrets
 
-`.env` holds the VPN credentials and is gitignored; `.env.example` documents the
-required variables. `install-vpn.sh` reads it and renders the credential files
-each client needs, nothing secret is committed.
+`.env` holds the VPN credentials and the Jira API token, and is gitignored;
+`.env.example` documents the variables. `install-vpn.sh` reads it and renders
+the credential files each client needs, and `install-omarchy-jira-plugin.sh`
+copies `JIRA_API_TOKEN` into the plugin's entry in `shell.json`. Nothing secret
+is committed. The Jira token is the one optional entry: without it that plugin
+still opens tickets, it just stops looking anything up.
 
 Also gitignored, and required at install time but never committed:
 `vpn/certs/` (the OpenVPN client certificate and private key) and the original

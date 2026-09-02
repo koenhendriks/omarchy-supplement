@@ -7,12 +7,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PLUGIN_URL="https://github.com/koenhendriks/omarchy-menu-jira-plugin.git"
 SHELL_CONFIG="$HOME/.config/omarchy/shell.json"
+ENV_FILE="$SCRIPT_DIR/.env"
 
-# The Jira this machine works against. `projects` is what keeps the row honest:
-# with nothing listed, every KEY-123 shaped query becomes a ticket, so a search
-# for something like `mp3-320` would offer to open it in Jira.
+# The Jira this machine works against, and the account the API token belongs to
+# (a Jira API token is the password half of HTTP Basic, so it is useless on its
+# own).
 JIRA_BASE_URL="https://yh-jira.atlassian.net/"
-JIRA_PROJECTS='["SWD"]'
+JIRA_EMAIL="koen.hendriks@yourhosting.nl"
+
+# Left empty so the token decides: the plugin filters on the projects the
+# account can actually see and caches them, which is a better list than one
+# maintained here. Without a token an empty list means every KEY-123 shaped
+# query becomes a ticket row, including a search for something like `mp3-320`.
+JIRA_PROJECTS='[]'
+
+# Optional, and the only secret here. Absent, the plugin still opens tickets; it
+# just cannot look up which projects exist or what a ticket is called.
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$ENV_FILE"
+    set +a
+fi
+JIRA_API_TOKEN="${JIRA_API_TOKEN:-}"
 
 # The work Jira is logged into the yourhosting Chrome profile, so the row cannot
 # go through omarchy-launch-browser: that resolves the *default* browser entry,
@@ -59,11 +76,12 @@ fi
 # registration.
 MERGED="$(mktemp)"
 
-python3 - "$PLUGIN_ID" "$JIRA_BASE_URL" "$JIRA_PROJECTS" "$JIRA_COMMAND" "$SHELL_CONFIG" "$MERGED" <<'PY'
+python3 - "$PLUGIN_ID" "$JIRA_BASE_URL" "$JIRA_EMAIL" "$JIRA_PROJECTS" "$JIRA_COMMAND" \
+    "$JIRA_API_TOKEN" "$SHELL_CONFIG" "$MERGED" <<'PY'
 import json
 import sys
 
-plugin_id, base_url, projects_json, command, config_path, out_path = sys.argv[1:7]
+plugin_id, base_url, email, projects_json, command, api_token, config_path, out_path = sys.argv[1:9]
 
 with open(config_path) as handle:
     config = json.load(handle)
@@ -75,8 +93,18 @@ if not isinstance(entries, list):
 for entry in entries:
     if isinstance(entry, dict) and entry.get("id") == plugin_id:
         entry["baseUrl"] = base_url
+        entry["email"] = email
         entry["projects"] = json.loads(projects_json)
         entry["command"] = command
+        # An empty JIRA_API_TOKEN means "not in .env", which is not the same as
+        # "remove the one that is configured": a token pasted into shell.json by
+        # hand is still the user's answer and outlives a .env that never had it.
+        if api_token:
+            entry["apiToken"] = api_token
+            # The plugin reads either spelling and prefers this one, so leaving
+            # the hyphenated key behind would mean editing it and seeing nothing
+            # happen.
+            entry.pop("api-token", None)
         break
 else:
     sys.exit("%s is not in %s's plugins list" % (plugin_id, config_path))
@@ -95,7 +123,11 @@ else
         cp "$SHELL_CONFIG" "$SHELL_CONFIG.bak"
     fi
 
-    echo "Pointing $PLUGIN_ID at $JIRA_BASE_URL"
+    if [ -n "$JIRA_API_TOKEN" ]; then
+        echo "Pointing $PLUGIN_ID at $JIRA_BASE_URL as $JIRA_EMAIL, with an API token"
+    else
+        echo "Pointing $PLUGIN_ID at $JIRA_BASE_URL (no JIRA_API_TOKEN in .env, so no lookups)"
+    fi
     cat "$MERGED" >"$SHELL_CONFIG"
     rm -f "$MERGED"
 
