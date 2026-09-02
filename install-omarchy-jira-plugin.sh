@@ -14,6 +14,13 @@ SHELL_CONFIG="$HOME/.config/omarchy/shell.json"
 JIRA_BASE_URL="https://yh-jira.atlassian.net/"
 JIRA_PROJECTS='["SWD"]'
 
+# The work Jira is logged into the yourhosting Chrome profile, so the row cannot
+# go through omarchy-launch-browser: that resolves the *default* browser entry,
+# which is the personal profile here. Same shape as omarchy-launch-browser's own
+# launch (uwsm-app puts the browser in its own systemd scope rather than leaving
+# it parented to the shell), with the profile install-chrome-profiles.sh set up.
+JIRA_COMMAND='uwsm-app -- google-chrome-stable --profile-directory="Profile 1"'
+
 plugin_init "io.github.koenhendriks.menu-jira"
 
 # Same reason as install-omarchy-calculator-plugin.sh: `omarchy plugin add`
@@ -52,11 +59,11 @@ fi
 # registration.
 MERGED="$(mktemp)"
 
-python3 - "$PLUGIN_ID" "$JIRA_BASE_URL" "$JIRA_PROJECTS" "$SHELL_CONFIG" "$MERGED" <<'PY'
+python3 - "$PLUGIN_ID" "$JIRA_BASE_URL" "$JIRA_PROJECTS" "$JIRA_COMMAND" "$SHELL_CONFIG" "$MERGED" <<'PY'
 import json
 import sys
 
-plugin_id, base_url, projects_json, config_path, out_path = sys.argv[1:6]
+plugin_id, base_url, projects_json, command, config_path, out_path = sys.argv[1:7]
 
 with open(config_path) as handle:
     config = json.load(handle)
@@ -69,6 +76,7 @@ for entry in entries:
     if isinstance(entry, dict) and entry.get("id") == plugin_id:
         entry["baseUrl"] = base_url
         entry["projects"] = json.loads(projects_json)
+        entry["command"] = command
         break
 else:
     sys.exit("%s is not in %s's plugins list" % (plugin_id, config_path))
