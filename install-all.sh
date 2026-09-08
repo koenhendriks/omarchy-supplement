@@ -43,6 +43,7 @@ fi
 . ./install-nano.sh
 . ./install-vlc.sh
 . ./install-vorbis-tools.sh
+. ./install-ark.sh
 . ./install-satty.sh
 . ./install-bitwarden.sh
 . ./install-1password.sh
@@ -54,6 +55,7 @@ fi
 . ./install-yarn.sh
 . ./install-nextcloud.sh
 . ./install-glab.sh
+. ./install-jira-cli.sh
 . ./install-whatsapp.sh
 . ./install-telegram.sh
 . ./install-teams.sh
@@ -77,9 +79,6 @@ fi
 . ./install-omarchy-shell.sh
 . ./install-omarchy-notification-plugin.sh
 . ./install-omarchy-jira-plugin.sh
-# After the Chrome per-profile launchers and the menu plugin: the restore relies
-# on the former, and the shutdown rows are merged into the latter's config.
-. ./install-session.sh
 . ./enable-sshd.sh
 
 # Only turn it back off if this script turned it on. If it was already on, it is
