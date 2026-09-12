@@ -39,6 +39,7 @@ fi
 . ./install-cronie.sh
 . ./install-screensaver.sh
 . ./install-bind.sh
+. ./install-nmap.sh
 . ./install-lsof.sh
 . ./install-nano.sh
 . ./install-vlc.sh

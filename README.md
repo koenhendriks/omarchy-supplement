@@ -33,6 +33,7 @@ install down first, then add packages, then layer config on top.
 | `remove-webapps.sh` | Clears every Omarchy webapp |
 | `remove-preinstalled.sh` | Drops preinstalled apps not wanted here (obsidian, libreoffice, signal, …) |
 | `install-bind.sh` | `bind`, for `dig` and friends |
+| `install-nmap.sh` | nmap, for port and service scans |
 | `install-nano.sh` | nano, which Omarchy does not ship |
 | `install-ark.sh` | Ark, plus the 7z and rar handlers it treats as optional |
 | `install-bitwarden.sh` | Bitwarden desktop and CLI |
