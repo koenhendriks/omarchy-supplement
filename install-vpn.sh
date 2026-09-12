@@ -12,6 +12,18 @@ if ! command -v openvpn3 >/dev/null; then
     exit 1
 fi
 
+# `command -v` only proves the file is on PATH. openvpn3 is an AUR build, so a
+# repo soname bump can leave it installed but unable to start (see
+# install-openvpn.sh), and the first thing that notices is `config-import`
+# further down, failing with a linker error that says nothing about this script.
+# Run the binary instead of looking for it.
+if ! openvpn3 version >/dev/null 2>&1; then
+    echo "openvpn3 is installed but will not run:"
+    openvpn3 version 2>&1 | sed 's/^/    /'
+    echo "Run ./install-openvpn.sh first, it rebuilds the package when a library moved under it"
+    exit 1
+fi
+
 if [ ! -f "$ENV_FILE" ]; then
     echo ".env not found at $ENV_FILE"
     echo "Copy .env.example to .env and fill in the VPN secrets first"

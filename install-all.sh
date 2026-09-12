@@ -6,7 +6,7 @@
 # That timer is what makes this safe to do from a script. A guard clause in any
 # sourced script can `exit 1` and take the whole run with it, skipping the
 # tear-down at the bottom of this file and the rule still expires on its own.
-SUDO_MINUTES=5
+SUDO_MINUTES=10
 SUDO_NOPASSWD_FILE="/etc/sudoers.d/99-omarchy-nopasswd-$USER"
 SUDO_NOPASSWD_WAS_ENABLED=false
 

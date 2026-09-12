@@ -315,6 +315,16 @@ line, collected here so it is findable.
   manager runs as the `openvpn` user, but the package ships
   `/var/lib/openvpn3/configs` as `root:root`, so profiles vanish when the service
   idles out or the machine reboots. `install-openvpn.sh` fixes the ownership.
+- **A repo update can break an AUR package without pacman noticing.** `jsoncpp`
+  1.9.8 replaced `libjsoncpp.so.26` with `.27`, and `openvpn3` — built from the
+  AUR against the old soname — stopped starting at all: `error while loading
+  shared libraries`. Nothing in the package database says so, because the
+  recorded dependency is `jsoncpp>=0.10.5` and that is still satisfied, so `yay
+  -S --needed openvpn3` calls the package up to date and skips it on every
+  re-run. The break shows up two scripts later, as a linker error out of
+  `install-vpn.sh`'s first `config-import`. `ldd` on the binary is the only place
+  it is visible; `install-openvpn.sh` looks there and rebuilds the package, and
+  `install-vpn.sh` runs `openvpn3 version` rather than trusting `command -v`.
 - **Compression has to be a profile override, not a directive.** The MassMarket
   server pushes compression; openvpn3 rejects it by default and tears the session
   down one line after connecting. `allow-compression` inside the `.ovpn` is
