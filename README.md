@@ -372,6 +372,25 @@ line, collected here so it is findable.
   needs `omarchy restart shell` while a *settings* change, read off `shellConfig`,
   is live on save, which makes an edit that does nothing look like a broken
   plugin rather than a stale one.
+- **A cloned menu is handed a `shell` with no `appLibrary`, and loses every
+  application without a word.** The same class of hole as the two above, one
+  layer down: `shell.qml` builds a capability-scoped `PluginShellApi` for a
+  third-party plugin, and in Omarchy 4.0.3 `appLibrary` comes out null on it even
+  though the manifest declares the `menu` kind that is supposed to earn it. The
+  stock menu never sees this, because `pluginShellFor()` returns the `ShellRoot`
+  itself to a first-party plugin. `Menu.qml`'s `mergeAppRows()` opens with
+  `if (!root.appLibrary) return`, so the calculator clone had no applications at
+  all: an Apps submenu reading "Nothing here yet", no app in search, and nothing
+  in the journal — a null there is a legal binding result, same as the
+  `serviceFor()` hole. It presents as something else entirely, because the first
+  thing anyone searches for is a specific app: the Chrome profile launchers
+  `install-chrome-profiles.sh` writes look broken when the launchers are fine and
+  `DesktopEntries` parses both. `ldd`'s equivalent here is asking the plugin
+  itself — logging `root.shell` and `root.appLibrary` from inside the clone is the
+  only place the null is visible. Fixed in the calculator plugin (v1.1.0), which
+  now rebuilds the capability from `DesktopEntries` plus the shell's own
+  `AppSearch.js` and `hidden-entries.sh`, and stands aside if a host ever
+  provides one.
 - **There is no per-app mute anywhere in the shell.** `notifications.json` is
   `{version, dnd}` and that is the whole of it; the only per-app list in
   `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and
