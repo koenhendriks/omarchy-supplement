@@ -56,6 +56,7 @@ install down first, then add packages, then layer config on top.
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
+| `install-video-accel.sh` | Intel VA-API driver and `vainfo`, for the decode GPU `hypr/graphics.lua` selects |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
@@ -66,7 +67,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin, points it at the work Jira and hands it the API token from `.env` |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
-| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel) |
+| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel, graphics) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
@@ -619,6 +620,35 @@ line, collected here so it is findable.
   `omarchy refresh` for it must be installed as a plain file, not symlinked —
   which is why `install-omarchy-shell.sh` copies `omarchy/bar/vpn` into place
   instead of linking it.
+- **Omarchy sends video decode to the NVIDIA GPU on a hybrid laptop, and Chrome
+  tears itself apart over it.** `default/hypr/nvidia.lua` sets
+  `LIBVA_DRIVER_NAME=nvidia` whenever an NVIDIA GPU with GSP firmware is present.
+  It asks whether such a GPU *exists*, never whether it drives a display, and on
+  this XPS the panel hangs off the Intel iGPU while the RTX 3050 Ti is a bare 3D
+  controller with no outputs at all (PCI class `0x0302`, while `boot_vga=1` sits
+  on the Intel device). Chrome therefore renders on Intel, picking the node
+  itself and reporting it as `--render-node-override=/dev/dri/renderD129` on its
+  GPU process, while decoding on NVIDIA, so every frame has to cross GPUs as a
+  dmabuf import. Those imports fail intermittently, which presents as a broken
+  *player* rather than a broken driver: YouTube and Reddit video flickering,
+  video black while the audio plays on, a window resize that fixes it for a
+  while by forcing a fresh buffer allocation, and eventually a dead GPU process
+  (`GPU process isn't usable. Goodbye.`, which 1Password logged here too).
+  `hypr/graphics.lua` points VA-API back at the GPU that owns the display. The
+  one place the cause is visible is which driver the GPU process has mapped:
+  `grep -o '/usr/lib/dri/.*_drv_video.so' /proc/<gpu-pid>/maps` answers
+  `nvidia_drv_video.so` before the override and `iHD_drv_video.so` after.
+- **Hyprland's `hl.env` reaches Chrome through an `import-environment` that only
+  runs at login.** `default/hypr/autostart.lua` runs `systemctl --user
+  import-environment $(env | cut -d'=' -f 1)` as an exec-once, which is how the
+  compositor's env lands in the systemd user manager that `uwsm-app` launches
+  apps from. Exec-once does not re-run on `hyprctl reload`, so an `hl.env` change
+  is live for the config yet invisible to every app until the next login, and
+  `systemctl --user set-environment` is what makes it testable now. Watch the
+  ordering when setting one by hand: `dbus-update-activation-environment
+  --systemd VAR` reads `VAR` out of the *calling shell*, so running it after
+  `set-environment` from a shell that inherited the old value quietly puts the
+  old value back.
 - **`hypr/*.lua` is globbed into `hyprland.lua`.** `install-hyprland-overrides.sh`
   appends a `dofile()` line for every `.lua` in `hypr/`, so config for a *different*
   hypr daemon cannot be parked there — it all reaches Hyprland itself.

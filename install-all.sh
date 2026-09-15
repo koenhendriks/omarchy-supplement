@@ -72,6 +72,7 @@ fi
 . ./install-openvpn.sh
 . ./install-strongswan.sh
 . ./install-vpn.sh
+. ./install-video-accel.sh
 . ./install-hyprland-overrides.sh
 . ./install-omarchy-bar.sh
 . ./install-omarchy-notifications.sh
