@@ -625,17 +625,24 @@ line, collected here so it is findable.
   `LIBVA_DRIVER_NAME=nvidia` whenever an NVIDIA GPU with GSP firmware is present.
   It asks whether such a GPU *exists*, never whether it drives a display, and on
   this XPS the panel hangs off the Intel iGPU while the RTX 3050 Ti is a bare 3D
-  controller with no outputs at all (PCI class `0x0302`, while `boot_vga=1` sits
-  on the Intel device). Chrome therefore renders on Intel, picking the node
-  itself and reporting it as `--render-node-override=/dev/dri/renderD129` on its
-  GPU process, while decoding on NVIDIA, so every frame has to cross GPUs as a
+  controller with no DRM connectors at all, so even docked every output is
+  Intel's. Chrome therefore renders on Intel, picking the node itself and
+  reporting it as `--render-node-override=/dev/dri/renderD129` on its GPU
+  process, while decoding on NVIDIA, so every frame has to cross GPUs as a
   dmabuf import. Those imports fail intermittently, which presents as a broken
   *player* rather than a broken driver: YouTube and Reddit video flickering,
   video black while the audio plays on, a window resize that fixes it for a
   while by forcing a fresh buffer allocation, and eventually a dead GPU process
   (`GPU process isn't usable. Goodbye.`, which 1Password logged here too).
-  `hypr/graphics.lua` points VA-API back at the GPU that owns the display. The
-  one place the cause is visible is which driver the GPU process has mapped:
+  `hypr/graphics.lua` points VA-API back at the GPU that owns the display. It
+  tests which GPU has a *connected output* rather than which one is `boot_vga`,
+  because this repo also runs on the desktop: `boot_vga` is whatever the firmware
+  picked as primary at POST, and a board that leaves its iGPU enabled can hand
+  that to Intel while a discrete card drives every screen, which would recreate
+  this same bug in mirror image. Requiring that no non-Intel GPU has a connected
+  output means a machine with screens on both falls through to Omarchy's default
+  instead of being guessed at. The one place the cause is visible is which driver
+  the GPU process has mapped:
   `grep -o '/usr/lib/dri/.*_drv_video.so' /proc/<gpu-pid>/maps` answers
   `nvidia_drv_video.so` before the override and `iHD_drv_video.so` after.
 - **Hyprland's `hl.env` reaches Chrome through an `import-environment` that only
