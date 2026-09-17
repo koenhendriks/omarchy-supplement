@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed bind
+omarchy-pkg-add bind

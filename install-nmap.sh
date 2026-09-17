@@ -3,6 +3,6 @@
 set -e
 
 echo "Installing nmap"
-yay -S --noconfirm --needed nmap
+omarchy-pkg-add nmap
 
 echo "Nmap setup complete!"

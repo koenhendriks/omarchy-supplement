@@ -2,7 +2,7 @@
 
 set -e
 
-yay -S --noconfirm --needed strongswan
+omarchy-pkg-add strongswan
 
 # swanctl talks to charon over /run/charon.vici, which charon creates as
 # root:root 0660. The mode already allows group access, so only the group needs

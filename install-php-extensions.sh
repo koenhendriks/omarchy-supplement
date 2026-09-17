@@ -6,15 +6,18 @@ PHP_INI="/etc/php/php.ini"
 
 pie install phpredis/phpredis
 
-yay -S --noconfirm --needed php-gd
-yay -S --noconfirm --needed php-amqp
+omarchy-pkg-add php-gd
+
+# php-amqp is the one extension here with no repo package, so it takes the AUR
+# helper while its two neighbours do not.
+omarchy-pkg-aur-add php-amqp
 
 # PostgreSQL from the repos rather than PIE. PIE can build both of these
 # (php/pdo_pgsql, php/pgsql) but it compiles against the current PHP ABI, so a
 # php upgrade silently stops the extension loading until it is rebuilt by hand.
 # pacman rebuilds php-pgsql in lockstep with php instead. PIE still earns its
 # place for phpredis above, which is a genuine PECL extension.
-yay -S --noconfirm --needed php-pgsql
+omarchy-pkg-add php-pgsql
 
 if [ ! -f "$PHP_INI" ]; then
     echo "PHP config not found at $PHP_INI"

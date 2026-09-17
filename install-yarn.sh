@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed yarn
+omarchy-pkg-add yarn

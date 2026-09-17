@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed lsof
+omarchy-pkg-add lsof

@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed sublime-text-4
+omarchy-pkg-add sublime-text-4

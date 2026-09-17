@@ -5,7 +5,7 @@ set -e
 RULES="/etc/udev/rules.d/40-streamdeck.rules"
 
 echo "Installing opendeck-bin"
-yay -S --noconfirm --needed opendeck-bin
+omarchy-pkg-aur-add opendeck-bin
 
 if [ ! -f "$RULES" ]; then
     echo "Stream Deck udev rules not found at $RULES"

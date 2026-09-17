@@ -2,7 +2,7 @@
 
 set -e
 
-yay -S --noconfirm --needed wifiman-desktop
+omarchy-pkg-aur-add wifiman-desktop
 
 LOCAL_DIR="$HOME/.local/share/applications"
 WEBKIT_ENV="env WEBKIT_DISABLE_DMABUF_RENDERER=1"

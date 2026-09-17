@@ -2,18 +2,22 @@
 
 set -e
 
-yay -S --noconfirm --needed openvpn3
+omarchy-pkg-aur-add openvpn3
 
 # openvpn3 comes from the AUR, so it is linked against whatever sonames were on
 # disk the day it was built. A repo dependency bumping its soname leaves the
 # binary unable to start -- jsoncpp 1.9.8 replaced libjsoncpp.so.26 with .27 and
 # openvpn3 died with "error while loading shared libraries" -- and pacman sees
 # none of it, because the versioned `jsoncpp>=0.10.5` dependency is still
-# satisfied. `yay -S --needed` then reports the package up to date and skips it,
-# so the break survives every re-run until the package is rebuilt by hand.
+# satisfied. `omarchy-pkg-aur-add` above then finds the package installed and
+# skips it, so the break survives every re-run until it is rebuilt by hand.
 #
 # Ask the binary rather than the package database, which is the only place the
 # breakage is visible.
+#
+# The rebuild stays raw yay: no Omarchy helper expresses --rebuild, and
+# omarchy-pkg-aur-add would refuse the job anyway, since its whole guard is that
+# the package is already there.
 if ldd /usr/bin/openvpn3 2>/dev/null | grep -q "not found"; then
     echo "openvpn3 is linked against libraries that are no longer installed:"
     ldd /usr/bin/openvpn3 2>/dev/null | grep "not found" | sed 's/^/    /'

@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed telegram-desktop
+omarchy-pkg-add telegram-desktop

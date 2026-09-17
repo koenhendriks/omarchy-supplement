@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed 1password 1password-cli
+omarchy-pkg-add 1password 1password-cli

@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed elecwhat-bin
+omarchy-pkg-aur-add elecwhat-bin

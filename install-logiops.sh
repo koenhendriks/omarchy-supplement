@@ -12,7 +12,7 @@ if [ ! -f "$CONFIG_SOURCE" ]; then
 fi
 
 echo "Installing logiops"
-yay -S --noconfirm --needed logiops
+omarchy-pkg-aur-add logiops
 
 echo "Installing logid config into $CONFIG_TARGET"
 

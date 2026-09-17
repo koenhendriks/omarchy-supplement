@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed vorbis-tools
+omarchy-pkg-add vorbis-tools

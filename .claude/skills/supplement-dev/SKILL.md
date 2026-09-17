@@ -65,7 +65,12 @@ echo "Thing setup complete!"
 Every script must be safe to re-run; `install-all.sh` is the normal entry point.
 Patterns already in use, prefer them over inventing new ones:
 
-- `yay -S --noconfirm --needed` for packages.
+- `omarchy-pkg-add` for packages in `core`, `extra`, `multilib` or the `omarchy`
+  repo, and `omarchy-pkg-aur-add` for AUR-only ones. Check with `pacman -Si <pkg>`
+  before picking: pkg-add is pacman and fails on an AUR name. Both skip entirely
+  when the package is already installed, so neither upgrades one -- that is
+  `omarchy update`'s job, not an installer's. Raw `yay` only where no helper
+  reaches, which today is `install-openvpn.sh`'s `--rebuild`.
 - `grep -Fxq` before appending a line (`install-hyprland-overrides.sh`).
 - Back up to `*.bak` only when no backup exists, so the pristine original is
   never overwritten by a second run.

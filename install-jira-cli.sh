@@ -25,7 +25,7 @@ JIRA_BOARD="none"
 echo "Installing jira-cli"
 # The -bin package: the same upstream release, without a Go toolchain to rebuild
 # it. Both AUR packages provide `jira` and conflict with each other.
-yay -S --noconfirm --needed jira-cli-bin
+omarchy-pkg-aur-add jira-cli-bin
 
 if [ -f "$ENV_FILE" ]; then
     set -a

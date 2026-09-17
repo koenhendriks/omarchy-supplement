@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed teams-for-linux-bin
+omarchy-pkg-aur-add teams-for-linux-bin

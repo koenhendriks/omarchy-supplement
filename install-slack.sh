@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed slack-electron
+omarchy-pkg-aur-add slack-electron

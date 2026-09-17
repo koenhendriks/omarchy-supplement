@@ -21,7 +21,10 @@ plugin_init "quickshell.spotify"
 # it, socat carries the backend's control socket, and avahi-browse is what finds
 # Spotify Connect receivers on the LAN.
 echo "Installing the Spotify plugin's runtime dependencies"
-yay -S --noconfirm --needed gnome-keyring libsecret socat avahi
+# All four ship in omarchy-base.packages, so this is a no-op on a stock Omarchy
+# and only earns its place if one of them was dropped. omarchy-pkg-add costs a
+# `pacman -Q` when they are present, which is what makes keeping it free.
+omarchy-pkg-add gnome-keyring libsecret socat avahi
 
 # Same reason as install-omarchy-notification-plugin.sh: `omarchy plugin add`
 # exits non-zero on an id that is already installed, and this script is *sourced*

@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed phpstorm-jre phpstorm
+omarchy-pkg-aur-add phpstorm-jre phpstorm

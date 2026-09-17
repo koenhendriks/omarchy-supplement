@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed glab
+omarchy-pkg-add glab

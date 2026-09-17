@@ -2,7 +2,7 @@
 
 set -e
 
-yay -S --noconfirm --needed yaak-bin
+omarchy-pkg-aur-add yaak-bin
 
 SYSTEM_DESKTOP="/usr/share/applications/yaak.desktop"
 LOCAL_DIR="$HOME/.local/share/applications"

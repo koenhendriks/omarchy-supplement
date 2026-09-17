@@ -310,6 +310,31 @@ Also gitignored, and required at install time but never committed:
 Non-obvious behaviour this repo works around. Each has a comment at the relevant
 line, collected here so it is findable.
 
+- **`omarchy-pkg-add` is pacman, and Omarchy ships a repo of its own.** The
+  helper every installer here now calls runs `pacman -S`, not `yay`, so it fails
+  on an AUR-only name and `omarchy-pkg-aur-add` is the one that takes those. What
+  makes the split worth checking rather than guessing is the `[omarchy]` repo:
+  `1password`, `1password-cli` and `sublime-text-4` all live there, so three
+  packages that look like obvious AUR builds are plain `pacman` installs. `pacman
+  -Si <pkg>` settles it. Twelve packages here are genuinely AUR-only; the other
+  twenty-six are not.
+- **Neither helper upgrades anything.** Both open with `omarchy-pkg-missing` and
+  do nothing at all when every named package is present, where `yay -S --needed`
+  would still pull a newer version. That is the right division of labour, since
+  `omarchy update` upgrades the system, but it means an installer can no longer
+  be used to force a package forward. `install-openvpn.sh` is where that bites:
+  its soname rebuild stays on raw `yay -S --rebuild`, because no Omarchy helper
+  expresses `--rebuild` and `omarchy-pkg-aur-add` would skip the package anyway,
+  the installed-but-broken case being exactly the one it refuses.
+- **Omarchy's own installer for an app can do more than install it.** `omarchy
+  install service 1password` is the only entry in Omarchy's catalog covering
+  anything this repo installs, and beyond `omarchy-pkg-add 1password
+  1password-cli` it registers the 1Password extension in
+  `/usr/share/chromium/extensions` and launches the app. `install-1password.sh`
+  calls the helper rather than the service installer for both reasons: a GUI
+  opening in the middle of `install-all.sh` is not wanted, and the extension step
+  targets Chromium while `install-browser.sh` makes Google Chrome the default,
+  which reads a different directory. The packages are identical either way.
 - **openvpn3 stores a *snapshot* of a profile.** Certificates and credential
   files are inlined at import time. Editing `vpn/MassMarket.ovpn` does nothing
   until `install-vpn.sh` re-imports it, and `vpn/certs/` must stay where it is.
@@ -321,9 +346,9 @@ line, collected here so it is findable.
   1.9.8 replaced `libjsoncpp.so.26` with `.27`, and `openvpn3` — built from the
   AUR against the old soname — stopped starting at all: `error while loading
   shared libraries`. Nothing in the package database says so, because the
-  recorded dependency is `jsoncpp>=0.10.5` and that is still satisfied, so `yay
-  -S --needed openvpn3` calls the package up to date and skips it on every
-  re-run. The break shows up two scripts later, as a linker error out of
+  recorded dependency is `jsoncpp>=0.10.5` and that is still satisfied, so
+  `omarchy-pkg-aur-add openvpn3` finds the package installed and skips it on
+  every re-run. The break shows up two scripts later, as a linker error out of
   `install-vpn.sh`'s first `config-import`. `ldd` on the binary is the only place
   it is visible; `install-openvpn.sh` looks there and rebuilds the package, and
   `install-vpn.sh` runs `openvpn3 version` rather than trusting `command -v`.
@@ -634,7 +659,8 @@ line, collected here so it is findable.
   moved to `tensaku-edit`, so satty is no longer pulled in by Omarchy — but the
   `ALT + SHIFT + 4` binding still wants it, and `install-satty.sh` reinstalls it
   from `extra`. It is a repo package, not an AUR one, despite having been dropped
-  from Omarchy's own dependencies.
+  from Omarchy's own dependencies, which is why it takes `omarchy-pkg-add` rather
+  than `omarchy-pkg-aur-add`.
 - **strongSwan ignores the system CA store.** `update-ca-trust` is not enough:
   charon only trusts certificates in `/etc/swanctl/x509ca`. Without them the
   handshake fails with `no issuer certificate found` even though `trust list`
@@ -650,8 +676,8 @@ line, collected here so it is findable.
   keep-alive loop therefore self-terminates on `kill -0 "$$"` instead.
 - **A background sudo keep-alive does not survive this run.** `install-all.sh`
   asked for a second password around `install-php-pie.sh` — the first script with
-  a sudo line in it after a long stretch that needs none, because yay skips sudo
-  entirely when every package is already up to date. Refreshing sudo's timestamp
+  a sudo line in it after a long stretch that needs none, because the package
+  helpers skip sudo entirely when every package is already installed. Refreshing sudo's timestamp
   in the background did not fix it, with either `sudo -n true` or `sudo -n -v`
   (only `-v` extends the timestamp at all; running a command just consumes the
   existing ticket). `install-all.sh` now uses `omarchy-sudo-passwordless` instead

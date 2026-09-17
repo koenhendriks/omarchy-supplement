@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed vlc
+omarchy-pkg-add vlc

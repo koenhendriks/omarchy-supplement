@@ -32,7 +32,7 @@ EXCLUDES=(
 )
 
 echo "Installing the Nextcloud client"
-yay -S --noconfirm --needed nextcloud-client
+omarchy-pkg-add nextcloud-client
 
 # Created rather than required: on a fresh machine the client has not run yet,
 # so there is no user exclude list to append to, and a guard clause that exits

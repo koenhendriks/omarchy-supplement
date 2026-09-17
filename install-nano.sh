@@ -2,4 +2,4 @@
 
 set -e
 
-yay -S --noconfirm --needed nano
+omarchy-pkg-add nano
