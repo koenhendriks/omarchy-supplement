@@ -383,6 +383,19 @@ line, collected here so it is findable.
   button reappears by itself — but it reinserts it *after* `omarchy.workspaces`
   rather than where it was, so `install-omarchy-calculator-plugin.sh` runs before
   `install-omarchy-shell.sh` and the layout merge puts it back at the front.
+- **Anything the bar stores by being clicked is reverted by the next installer
+  run.** `install-omarchy-shell.sh` merges `omarchy/shell-bar.json` with
+  `config["bar"].update(fragment)`, which is per *top-level key*, and `layout` is
+  one of them. So the whole layout is replaced wholesale: not just widget order,
+  but every per-widget setting living on a layout entry. The clock is where this
+  shows: right-clicking it walks `CLOCK_FORMATS` and writes the chosen format
+  back to its `shell.json` entry, so a format picked by clicking survives
+  restarts and then quietly goes back to the fragment's on the next
+  `./install-all.sh`. It reads as the installer having no opinion about the clock
+  when in fact it has the only one that lasts. The fix is to put the wanted value
+  in the fragment: `format` is `ddd d MMM HH:mm` there because that is the preset
+  the bar should come up with, four right-clicks along the ring from the stock
+  `dddd HH:mm`.
 - **Only one plugin can *be* the menu, and only a service can add rows to
   whichever one that is.** `resolveEnabledId()` walks `installedPlugins` and
   returns the first enabled plugin declaring `clonedFrom: omarchy.menu`, so two
