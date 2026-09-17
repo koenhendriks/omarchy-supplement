@@ -23,10 +23,13 @@ plugin_init "quickshell.spotify"
 echo "Installing the Spotify plugin's runtime dependencies"
 yay -S --noconfirm --needed gnome-keyring libsecret socat avahi
 
-# Same reason as install-omarchy-calculator-plugin.sh: `omarchy plugin add` exits
-# non-zero on an id that is already installed, and this script is *sourced* by
-# install-all.sh, so an unguarded second run would take the whole run with it.
-# Pulling new upstream commits is `omarchy plugin update`'s job, not this one's.
+# Same reason as install-omarchy-notification-plugin.sh: `omarchy plugin add`
+# exits non-zero on an id that is already installed, and this script is *sourced*
+# by install-all.sh, so an unguarded second run would take the whole run with it.
+#
+# Adds but never updates, unlike the two plugins whose upstream is ours: pulling
+# a third party's main on every run is unreviewed code landing in the shell, so
+# new commits here are taken deliberately with `omarchy plugin update`.
 if [ -d "$PLUGIN_DIR" ]; then
     echo "$PLUGIN_ID is already installed"
 else

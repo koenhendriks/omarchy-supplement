@@ -2,8 +2,9 @@
 
 # Shared by the install-omarchy-*.sh plugin installers. Most of it serves the
 # ones that rebuild a derived clone of a first-party Omarchy shell plugin; the
-# git-sourced plugins use only plugin_init() for the paths and restart_shell()
-# after patching what they cloned.
+# git-sourced plugins use plugin_init() for the paths, plugin_add_or_update() to
+# get the plugin there and keep it current, and restart_shell() after patching
+# what they cloned.
 #
 # Sourced, never executed: it defines variables and functions in the caller's
 # shell, and install-all.sh already sources those callers. Nothing here runs on
@@ -80,6 +81,45 @@ restart_shell() {
     echo "Warning: the shell did not restart within 30s, so it may still be"
     echo "serving the previously compiled QML. The plugin is written correctly;"
     echo "run 'omarchy restart shell' by hand to load it."
+}
+
+# Add a git-sourced plugin, or pull the upstream it already has. `omarchy plugin
+# add` exits non-zero on an id that is already installed, and the installers are
+# *sourced* by install-all.sh, so an unguarded second run would take the whole run
+# with it.
+#
+# Updating rather than skipping, because nothing else here pulls a git-sourced
+# plugin: neither `omarchy update` nor install-all.sh runs `omarchy plugin
+# update`, so a fix pushed upstream sits there unpulled. That is how the cloned
+# menu ran for weeks without the appLibrary fix it already had a release for.
+#
+# Only for plugins whose upstream is ours. Pulling a third party's main on every
+# run is unreviewed code landing in the shell, which is why the spotify and
+# notification-center installers still only add.
+plugin_add_or_update() {
+    local url="$1" before after
+
+    if [ ! -d "$PLUGIN_DIR" ]; then
+        echo "Adding $PLUGIN_ID"
+        omarchy plugin add "$url" --enable --yes
+        return 0
+    fi
+
+    before="$(git -C "$PLUGIN_DIR" rev-parse HEAD 2>/dev/null || true)"
+
+    # A failed fetch is not a reason to abort the whole run: the copy that is
+    # already installed keeps working, and `set -e` would otherwise stop here.
+    omarchy plugin update "$PLUGIN_ID" --yes ||
+        echo "Could not update $PLUGIN_ID, keeping the installed copy"
+
+    after="$(git -C "$PLUGIN_DIR" rev-parse HEAD 2>/dev/null || true)"
+
+    # Only a new commit earns a restart. The shell does notice the changed files
+    # on its own, but that hot-reload keeps serving the QML it compiled before --
+    # the same trap restart_shell() exists for.
+    if [ -n "$before" ] && [ -n "$after" ] && [ "$before" != "$after" ]; then
+        restart_shell
+    fi
 }
 
 # Move any existing clone aside. `omarchy plugin clone` refuses an existing

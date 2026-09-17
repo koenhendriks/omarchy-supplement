@@ -40,16 +40,7 @@ JIRA_COMMAND='uwsm-app -- google-chrome-stable --profile-directory="Profile 1"'
 
 plugin_init "io.github.koenhendriks.menu-jira"
 
-# Same reason as install-omarchy-calculator-plugin.sh: `omarchy plugin add`
-# exits non-zero on an id that is already installed, and this script is *sourced*
-# by install-all.sh, so an unguarded second run would take the whole run with it.
-# Pulling new upstream commits is `omarchy plugin update`'s job, not this one's.
-if [ -d "$PLUGIN_DIR" ]; then
-    echo "$PLUGIN_ID is already installed"
-else
-    echo "Adding $PLUGIN_ID"
-    omarchy plugin add "$PLUGIN_URL" --enable --yes
-fi
+plugin_add_or_update "$PLUGIN_URL"
 
 # Enabling a service plugin is what mounts it inside omarchy-shell, and it is
 # also what puts the entry in shell.json that the settings below are written to.

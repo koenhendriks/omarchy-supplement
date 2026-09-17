@@ -240,11 +240,13 @@ that summons `omarchy.menu` — without a keybinding changing anywhere. Typing a
 expression into the search field puts the answer on top as a real menu row;
 `Enter` copies it. Anything that is not arithmetic leaves the results alone.
 
-It is *not* a derived clone: nothing here rebuilds or patches it, so it is
-installed once and updated with `omarchy plugin update
-io.github.koenhendriks.menu-calculator`. What the installer does beyond adding it
-is check that it is *enabled*, because an installed-but-disabled clone leaves the
-stock menu in place while `omarchy plugin list` still shows the plugin.
+It is *not* a derived clone: nothing here rebuilds or patches it, so the
+installer adds it once and pulls its upstream on every run after that, through
+`plugin_add_or_update()`. That pull is the point rather than a nicety: the
+appLibrary entry below is what a plugin sitting weeks behind a release it already
+had looks like. Beyond adding it the installer checks that it is
+*enabled*, because an installed-but-disabled clone leaves the stock menu in place
+while `omarchy plugin list` still shows the plugin.
 
 Because it is also a bar widget, the layout fragment names it rather than
 `omarchy.menu` for the Omarchy button — see below.
@@ -391,6 +393,17 @@ line, collected here so it is findable.
   now rebuilds the capability from `DesktopEntries` plus the shell's own
   `AppSearch.js` and `hidden-entries.sh`, and stands aside if a host ever
   provides one.
+
+  The sequel is that a fix in a plugin repo is not a fix on the machine.
+  `omarchy update` does not pull third-party plugins and `omarchy plugin add`
+  refuses an id it already has, so the installers used to skip an installed
+  plugin outright and v1.1.0 sat unpulled for weeks while the menu went on
+  showing no applications. That is indistinguishable from the original bug, and
+  looks for all the world like `omarchy update` reintroducing it. The two installers
+  whose upstream is ours now call `plugin_add_or_update()`, which updates instead
+  of skipping and restarts the shell when the commit actually moved. The spotify
+  and notification-center installers still only add: pulling a third party's main
+  on every run is unreviewed code landing in the shell.
 - **There is no per-app mute anywhere in the shell.** `notifications.json` is
   `{version, dnd}` and that is the whole of it; the only per-app list in
   `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and
