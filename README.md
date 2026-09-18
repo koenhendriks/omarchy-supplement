@@ -39,6 +39,7 @@ install down first, then add packages, then layer config on top.
 | `install-bitwarden.sh` | Bitwarden desktop and CLI |
 | `install-1password.sh` | 1Password desktop and CLI |
 | `install-phpstorm.sh` | PhpStorm and its bundled JRE |
+| `install-datagrip.sh` | DataGrip and its bundled JRE |
 | `install-sublime-text.sh` | Sublime Text 4 |
 | `install-nextcloud.sh` | Nextcloud client, plus sync exclusions for agent scratch and lock files |
 | `install-glab.sh` | GitLab CLI |

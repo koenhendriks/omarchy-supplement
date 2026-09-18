@@ -49,6 +49,7 @@ fi
 . ./install-bitwarden.sh
 . ./install-1password.sh
 . ./install-phpstorm.sh
+. ./install-datagrip.sh
 . ./install-sublime-text.sh
 . ./install-dev-laravel.sh
 . ./install-php-pie.sh
