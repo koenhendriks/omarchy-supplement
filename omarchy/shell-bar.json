@@ -1,6 +1,7 @@
 {
   "centerAnchor": "omarchy.active-window",
   "maxWidth": 2560,
+  "transparent": false,
   "layout": {
     "left": [
       {

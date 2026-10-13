@@ -509,9 +509,10 @@ line, collected here so it is findable.
   and that flag is easy to set by accident: `omarchy bar transparent toggle`, or a
   double-left-click on empty centre-bar space. It looks exactly like the
   width-capping patch having gone wrong, so check the flag first —
-  `omarchy bar transparent false` puts it back. `omarchy/shell-bar.json`
-  deliberately does not pin it, so the double-click gesture keeps working; the
-  cost is that a stray toggle survives until it is flipped back by hand.
+  `omarchy bar transparent false` puts it back. `omarchy/shell-bar.json` pins
+  it to `false`, so `install-omarchy-shell.sh` undoes a stray toggle. The
+  double-click gesture still works between runs, but a bar made transparent on
+  purpose goes opaque again on the next install.
 - **Narrowing the bar *window* silently misplaces every panel.** Insetting the
   bar's left/right layer-shell margins to centre a narrower bar looks perfect
   until a panel is opened: `shell/Ui/PopupCard.qml` anchors popups to the bar
