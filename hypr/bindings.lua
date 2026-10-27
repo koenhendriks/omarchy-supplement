@@ -22,20 +22,8 @@ o.bind("SUPER + I", "Add master", hl.dsp.layout("addmaster"))
 o.bind("SUPER + D", "Remove master", hl.dsp.layout("removemaster"))
 o.bind("CTRL + ALT + T", "Terminal", { omarchy = "terminal" })
 
--- Screenshot that always lands in the clipboard *and* on disk: satty's escape
--- and enter actions are both overridden to save to both.
--- Quattro annotates with tensaku-edit and no longer pulls satty in;
--- install-satty.sh puts it back.
-o.bind(
-  "ALT + SHIFT + 4",
-  "Screenshot region",
-  'grim -g "$(slurp)" - | satty -f -'
-    .. " --output-filename ~/Pictures/Screenshots/Screenshot_$(date +%Y%m%d_%H%M%S).png"
-    .. " --copy-command wl-copy"
-    .. ' --actions-on-escape="save-to-clipboard,save-to-file,exit"'
-    .. ' --actions-on-enter="save-to-clipboard,save-to-file,exit"'
-    .. " --floating-hack --initial-tool=arrow --annotation-size-factor=0.5"
-)
+-- Omarchy's own screenshot flow (the PRINT key) on a Mac-style shortcut.
+o.bind("ALT + SHIFT + 4", "Screenshot", "omarchy-capture-screenshot")
 
 -- File manager on SUPER + E (Omarchy's own is SUPER + SHIFT + F).
 o.bind("SUPER + E", "File manager", { launch = "nautilus --new-window" })

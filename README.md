@@ -55,7 +55,6 @@ install down first, then add packages, then layer config on top.
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
-| `install-satty.sh` | satty, for the `ALT + SHIFT + 4` screenshot binding |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
@@ -669,13 +668,8 @@ line, collected here so it is findable.
   config-parse time cannot be checked without restarting the session. Card
   numbering is not stable across boots, so the check loops over card indices
   rather than hardcoding `card2`.
-- **Quattro dropped `omarchy-swayosd-client` and `satty`.** Volume feedback now
-  goes through `omarchy-audio-output-volume raise|lower`. Screenshot annotation
-  moved to `tensaku-edit`, so satty is no longer pulled in by Omarchy — but the
-  `ALT + SHIFT + 4` binding still wants it, and `install-satty.sh` reinstalls it
-  from `extra`. It is a repo package, not an AUR one, despite having been dropped
-  from Omarchy's own dependencies, which is why it takes `omarchy-pkg-add` rather
-  than `omarchy-pkg-aur-add`.
+- **Quattro dropped `omarchy-swayosd-client`.** Volume feedback now goes
+  through `omarchy-audio-output-volume raise|lower`.
 - **strongSwan ignores the system CA store.** `update-ca-trust` is not enough:
   charon only trusts certificates in `/etc/swanctl/x509ca`. Without them the
   handshake fails with `no issuer certificate found` even though `trust list`

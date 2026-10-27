@@ -45,7 +45,6 @@ fi
 . ./install-vlc.sh
 . ./install-vorbis-tools.sh
 . ./install-ark.sh
-. ./install-satty.sh
 . ./install-bitwarden.sh
 . ./install-1password.sh
 . ./install-phpstorm.sh
