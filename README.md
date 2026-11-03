@@ -43,6 +43,7 @@ install down first, then add packages, then layer config on top.
 | `install-sublime-text.sh` | Sublime Text 4 |
 | `install-nextcloud.sh` | Nextcloud client, plus sync exclusions for agent scratch and lock files |
 | `install-glab.sh` | GitLab CLI |
+| `install-claude-sessions.sh` | [claude-sessions](https://github.com/koenhendriks/claude-sessions): fuzzy finder that lists and continues every Claude Code session |
 | `install-jira-cli.sh` | jira-cli, pointed at the work Jira with the `.env` token in `~/.netrc` |
 | `install-teams.sh` | Teams for Linux |
 | `install-outlook.sh` | Outlook as an Omarchy webapp |

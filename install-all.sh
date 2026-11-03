@@ -56,6 +56,7 @@ fi
 . ./install-yarn.sh
 . ./install-nextcloud.sh
 . ./install-glab.sh
+. ./install-claude-sessions.sh
 . ./install-jira-cli.sh
 . ./install-whatsapp.sh
 . ./install-telegram.sh
