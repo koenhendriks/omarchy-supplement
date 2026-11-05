@@ -706,6 +706,17 @@ line, collected here so it is findable.
   config-parse time cannot be checked without restarting the session. Card
   numbering is not stable across boots, so the check loops over card indices
   rather than hardcoding `card2`.
+- **DisplayPort MST connector names are not stable, even within one boot.** The
+  dock's two Dells arrive over MST, and the kernel names MST connectors as it
+  walks the topology rather than by physical port: one login enumerated them as
+  `DP-3` and `DP-6`, dropped `DP-6`, and brought the pair back as `DP-7` and
+  `DP-10`. So `hypr/monitors.lua` cannot name a connector to spot the dock or
+  to place either screen. It counts connected `card*-DP-*` entries under
+  `/sys/class/drm` instead, inside the `eDP-1` branch so the desktop's `DP-1`
+  ultrawide never counts, and addresses each Dell as `desc:<EDID string>`.
+  Both are U2715H at the same resolution, so the serial at the end of that
+  string is the only thing telling left from right; swapping the two constants
+  is the whole fix if they come up reversed.
 - **Quattro dropped `omarchy-swayosd-client`.** Volume feedback now goes
   through `omarchy-audio-output-volume raise|lower`.
 - **strongSwan ignores the system CA store.** `update-ca-trust` is not enough:
