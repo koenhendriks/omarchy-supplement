@@ -73,32 +73,70 @@ end
 local DELL_LEFT = "desc:Dell Inc. DELL U2715H GH85D7B51B6S"
 local DELL_RIGHT = "desc:Dell Inc. DELL U2715H GH85D7AH0WYS"
 
--- --- Workspace binding + per-monitor layout ---
--- Hyprland has no per-monitor layout setting, only per-workspace. So each
--- monitor gets a fixed range of workspaces, and every workspace in that range
--- pins the layout we want for that screen.
+-- --- Workspace blocks + per-monitor layout ---
+-- Hyprland has no per-monitor layout setting, only per-workspace. So every
+-- workspace a monitor owns pins the layout we want for that screen.
 --
--- The ranges must also add up to 1-10 and no further. Only SUPER+1..0 are
--- bound, so a monitor handed workspace 11 has no key that reaches it -- which
--- is what happened when all ten were pinned to eDP-1 and the docked Dells were
--- pushed onto 11 and 13.
+-- Since Omarchy 4.5 every monitor has workspaces 1-10 of its own (see
+-- default/hypr/monitor-workspaces.lua). Hyprland still numbers workspaces
+-- globally, so each monitor owns a block of ten: SUPER + 3 on a monitor holding
+-- block 1 lands on workspace 13, and the bar relabels it 3. Which monitor holds
+-- which block is decided the first time it is seen and remembered in
+-- ~/.local/state/omarchy/monitor-workspaces, one line per monitor: block,
+-- connector while plugged in, identity (the EDID make, model and serial). The
+-- bar reads that same file. A workspace rule names the global number, so the
+-- ranges pinned here follow the block instead of assuming 1-10 -- which is what
+-- silently handed the ultrawide dwindle after the 4.5 update, when it turned
+-- out to hold block 1.
 --
---   XPS 15 (eDP-1, only screen)   -> workspaces 1-10, dwindle
---   XPS 15 docked (eDP-1, left)   -> workspaces 1-2,  dwindle
---     Dell U2715H (middle)        -> workspaces 3-6,  dwindle
---     Dell U2715H (right)         -> workspaces 7-10, dwindle
---   AOC ultrawide (DP-1, bottom)  -> workspaces 1-5,  lua:custom_center
---   Dell P2418D   (HDMI-A-1, top) -> workspaces 6-10, dwindle
-local function pin_workspaces(monitor, layout, first, last)
-  for workspace = first, last do
+-- The dock's Dells are looked up by identity, since their MST connector names
+-- change between logins (see above) while the EDID serial does not.
+--
+--   XPS 15 (eDP-1)                -> its block, dwindle
+--     Dell U2715H (middle, docked) -> its block, dwindle
+--     Dell U2715H (right, docked)  -> its block, dwindle
+--   AOC ultrawide (DP-1, bottom)  -> its block, lua:custom_center
+--   Dell P2418D   (HDMI-A-1, top) -> its block, dwindle
+local SLOTS = 10
+
+-- `output` is a connector ("DP-1") or a `desc:` monitor string. `fallback` is
+-- the block Omarchy will hand out when the state file has not been written yet:
+-- it runs at hyprland.start, after this config has parsed, so the very first
+-- login after the 4.5 update pins by the fallbacks and a `hyprctl reload` sets
+-- things straight. Omarchy gives an internal panel block 0 whatever else is
+-- plugged in, and the rest blocks in Hyprland monitor-id order.
+local function block_of(output, fallback)
+  local identity = output:gsub("^desc:", "")
+  local state = require("default.hypr.paths").state_home .. "/omarchy/monitor-workspaces"
+  local file = io.open(state, "r")
+
+  if not file then
+    return fallback
+  end
+
+  for line in file:lines() do
+    local block, connector, seen = line:match("^(%d+)\t([^\t]*)\t(.+)$")
+
+    if block and (connector == output or seen == identity) then
+      file:close()
+      return tonumber(block)
+    end
+  end
+
+  file:close()
+  return fallback
+end
+
+local function pin_workspaces(monitor, layout, block)
+  for slot = 1, SLOTS do
     hl.workspace_rule({
-      workspace = tostring(workspace),
+      workspace = tostring(block * SLOTS + slot),
       monitor = monitor,
       layout = layout,
 
-      -- The first workspace of each range is the one that monitor opens on at
+      -- The first workspace of each block is the one that monitor opens on at
       -- startup. `or nil` keeps the key off the other rules entirely.
-      default = workspace == first or nil,
+      default = slot == 1 or nil,
     })
   end
 end
@@ -107,22 +145,21 @@ end
 if output_connected("eDP-1") then
   hl.monitor({ output = "eDP-1", mode = "1920x1200@59.95", position = "0x0", scale = 1 })
 
+  -- Stock dwindle everywhere. custom_center is built around the ultrawide's
+  -- 5120px -- it hands the middle half to masters and stacks slaves down the
+  -- quarters either side, which at 1920px leaves three columns too narrow to
+  -- work in. dwindle is also Hyprland's `general:layout` default, so this pins
+  -- what would happen anyway; it is spelled out so the file says which layout
+  -- each screen is meant to have rather than leaving one to inference.
+  pin_workspaces("eDP-1", "dwindle", block_of("eDP-1", 0))
+
   if dp_outputs_connected() >= 2 then
     -- Docked: the panel keeps the far left, the Dells run off to the right.
     hl.monitor({ output = DELL_LEFT, mode = "2560x1440@59.95", position = "1920x0", scale = 1 })
     hl.monitor({ output = DELL_RIGHT, mode = "2560x1440@59.95", position = "4480x0", scale = 1 })
 
-    pin_workspaces("eDP-1", "dwindle", 1, 2)
-    pin_workspaces(DELL_LEFT, "dwindle", 3, 6)
-    pin_workspaces(DELL_RIGHT, "dwindle", 7, 10)
-  else
-    -- Stock dwindle everywhere. custom_center is built around the ultrawide's
-    -- 5120px -- it hands the middle half to masters and stacks slaves down the
-    -- quarters either side, which at 1920px leaves three columns too narrow to
-    -- work in. dwindle is also Hyprland's `general:layout` default, so this pins
-    -- what would happen anyway; it is spelled out so the file says which layout
-    -- each screen is meant to have rather than leaving one to inference.
-    pin_workspaces("eDP-1", "dwindle", 1, 10)
+    pin_workspaces(DELL_LEFT, "dwindle", block_of(DELL_LEFT, 1))
+    pin_workspaces(DELL_RIGHT, "dwindle", block_of(DELL_RIGHT, 2))
   end
 else
   -- The Dell monitor (top, centered above the ultrawide).
@@ -131,6 +168,8 @@ else
   -- The AOC ultrawide (primary, bottom).
   hl.monitor({ output = "DP-1", mode = "5120x1440@120.00", position = "0x1440", scale = 1 })
 
-  pin_workspaces("DP-1", "lua:custom_center", 1, 5)
-  pin_workspaces("HDMI-A-1", "dwindle", 6, 10)
+  -- The fallbacks are the blocks Omarchy handed out on this desktop, where
+  -- HDMI-A-1 comes up with the lower monitor id.
+  pin_workspaces("DP-1", "lua:custom_center", block_of("DP-1", 1))
+  pin_workspaces("HDMI-A-1", "dwindle", block_of("HDMI-A-1", 0))
 end

@@ -79,11 +79,14 @@ authoritative and Omarchy's defaults are never edited. They load last, after
 Omarchy's defaults and after `~/.config/hypr/*.lua`, so they win.
 
 `hypr/monitors.lua` is the one override that differs per machine: it branches on
-whether an `eDP-1` connector is present, giving the XPS 15's internal panel plain
-dwindle on workspaces 1-10, and the desktop its ultrawide + Dell arrangement with
-`custom_center` on workspaces 1-5. The branch is not cosmetic -- a workspace rule
-applies wherever the workspace lands, so without it the ultrawide's layout also
-lands on the laptop's panel. See the note below.
+whether an `eDP-1` connector is present, giving the XPS 15's screens plain
+dwindle, and the desktop its ultrawide + Dell arrangement with `custom_center`
+on the ultrawide. The branch is not cosmetic -- a workspace rule applies
+wherever the workspace lands, so without it the ultrawide's layout also lands on
+the laptop's panel. Since Omarchy 4.5 each monitor owns a block of ten global
+workspace numbers, so the file reads a monitor's block from
+`~/.local/state/omarchy/monitor-workspaces` and pins all ten of its workspaces
+rather than assuming 1-10. See the notes below.
 
 Omarchy 4 (quattro) moved Hyprland from `.conf` to Lua. The overrides here use
 Omarchy's own helpers — `o.bind` for keys, `o.window` for window rules — rather
@@ -706,6 +709,18 @@ line, collected here so it is findable.
   config-parse time cannot be checked without restarting the session. Card
   numbering is not stable across boots, so the check loops over card indices
   rather than hardcoding `card2`.
+- **Omarchy 4.5 numbers workspaces per monitor, in blocks of ten.** Every
+  monitor gets workspaces 1-10 of its own; Hyprland still numbers them globally,
+  so the first monitor seen owns 1-10, the next 11-20, and `SUPER + 3` goes to
+  slot 3 of the focused monitor's block while the bar relabels it 3. The
+  assignment is by EDID identity and persists in
+  `~/.local/state/omarchy/monitor-workspaces` (block, connector, identity). On
+  the desktop the Dell came up first and took block 0, so the ultrawide's
+  `SUPER + 1` became workspace 11 and the `custom_center` rules on 1-5 stopped
+  matching anything -- dwindle, no error anywhere. `hypr/monitors.lua` now reads
+  the block from that file and pins the whole block. The file is written at
+  `hyprland.start`, after the config has parsed, so the first login after the
+  update pins by the hardcoded fallbacks and needs one `hyprctl reload`.
 - **DisplayPort MST connector names are not stable, even within one boot.** The
   dock's two Dells arrive over MST, and the kernel names MST connectors as it
   walks the topology rather than by physical port: one login enumerated them as
