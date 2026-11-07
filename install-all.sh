@@ -58,6 +58,7 @@ fi
 . ./install-glab.sh
 . ./install-claude-sessions.sh
 . ./install-jira-cli.sh
+. ./install-sentry-cli.sh
 . ./install-whatsapp.sh
 . ./install-telegram.sh
 . ./install-teams.sh
