@@ -26,11 +26,11 @@ intel_gpu_present() {
 # vainfo is the only way to see which VA-API driver actually resolved and which
 # codecs it offers, so it earns its place on every machine.
 echo "Installing VA-API tools"
-yay -S --noconfirm --needed libva-utils
+omarchy-pkg-add libva-utils
 
 if intel_gpu_present; then
     echo "Intel GPU present, installing its VA-API driver"
-    yay -S --noconfirm --needed intel-media-driver
+    omarchy-pkg-add intel-media-driver
 else
     echo "No Intel GPU, skipping intel-media-driver"
 fi
