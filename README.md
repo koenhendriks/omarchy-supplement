@@ -322,8 +322,9 @@ line, collected here so it is findable.
   makes the split worth checking rather than guessing is the `[omarchy]` repo:
   `1password`, `1password-cli` and `sublime-text-4` all live there, so three
   packages that look like obvious AUR builds are plain `pacman` installs. `pacman
-  -Si <pkg>` settles it. Twelve packages here are genuinely AUR-only; the other
-  twenty-six are not.
+  -Si <pkg>` settles it. Packages also move between the two: OpenDeck started
+  as the AUR's `opendeck-bin`, which was removed once Arch packaged it in
+  `extra` as `opendeck`.
 - **Neither helper upgrades anything.** Both open with `omarchy-pkg-missing` and
   do nothing at all when every named package is present, where `yay -S --needed`
   would still pull a newer version. That is the right division of labour, since

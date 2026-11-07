@@ -4,12 +4,21 @@ set -e
 
 RULES="/etc/udev/rules.d/40-streamdeck.rules"
 
-echo "Installing opendeck-bin"
-omarchy-pkg-aur-add opendeck-bin
+# The AUR's opendeck-bin was removed once Arch packaged OpenDeck in extra. The two
+# own the same files without declaring a conflict, so pacman stops on file
+# conflicts instead of replacing one with the other. Removing it first is safe:
+# pacman -R only deletes the package's own files, never OpenDeck's data under ~.
+if pacman -Q opendeck-bin >/dev/null 2>&1; then
+    echo "Removing opendeck-bin, which the extra package replaces"
+    sudo pacman -R --noconfirm opendeck-bin
+fi
+
+echo "Installing opendeck"
+omarchy-pkg-add opendeck
 
 if [ ! -f "$RULES" ]; then
     echo "Stream Deck udev rules not found at $RULES"
-    echo "Check whether opendeck-bin still ships them"
+    echo "Check whether opendeck still ships them"
     exit 1
 fi
 
