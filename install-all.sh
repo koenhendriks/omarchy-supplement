@@ -64,6 +64,7 @@ fi
 . ./install-teams.sh
 . ./install-outlook.sh
 . ./install-slack.sh
+. ./install-slackcli.sh
 . ./install-yaak.sh
 . ./install-wifiman.sh
 . ./install-opendeck.sh

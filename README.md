@@ -46,6 +46,7 @@ install down first, then add packages, then layer config on top.
 | `install-claude-sessions.sh` | [claude-sessions](https://github.com/koenhendriks/claude-sessions): fuzzy finder that lists and continues every Claude Code session |
 | `install-jira-cli.sh` | jira-cli, pointed at the work Jira with the `.env` token in `~/.netrc` |
 | `install-sentry-cli.sh` | Sentry CLI |
+| `install-slackcli.sh` | slackcli, for reading and sending Slack messages from the terminal |
 | `install-teams.sh` | Teams for Linux |
 | `install-outlook.sh` | Outlook as an Omarchy webapp |
 | `install-yaak.sh` | Yaak, with a WebKitGTK workaround in its desktop entry |
