@@ -60,6 +60,7 @@ install down first, then add packages, then layer config on top.
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
 | `install-video-accel.sh` | Intel VA-API driver and `vainfo`, for the decode GPU `hypr/graphics.lua` selects |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
+| `install-omasnap.sh` | Installs `omasnap/omasnap.conf`: the screenshot editor opens as a window, so it lands on the focused monitor |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |

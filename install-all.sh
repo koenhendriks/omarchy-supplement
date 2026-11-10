@@ -76,6 +76,7 @@ fi
 . ./install-vpn.sh
 . ./install-video-accel.sh
 . ./install-hyprland-overrides.sh
+. ./install-omasnap.sh
 . ./install-omarchy-bar.sh
 . ./install-omarchy-notifications.sh
 . ./install-omarchy-clock.sh
