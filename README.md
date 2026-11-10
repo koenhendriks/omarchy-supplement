@@ -58,7 +58,7 @@ install down first, then add packages, then layer config on top.
 | `install-openvpn.sh` | openvpn3, plus a fix to its profile storage |
 | `install-strongswan.sh` | strongSwan, plus non-root `swanctl` access |
 | `install-vpn.sh` | Imports both VPN profiles, rendering secrets from `.env` |
-| `install-video-accel.sh` | Intel VA-API driver and `vainfo`, for the decode GPU `hypr/graphics.lua` selects |
+| `install-video-accel.sh` | `vainfo`, to see which VA-API driver resolved |
 | `install-hyprland-overrides.sh` | Adds `dofile()` lines for `hypr/*.lua` |
 | `install-omasnap.sh` | Installs `omasnap/omasnap.conf`: the screenshot editor opens as a window, so it lands on the focused monitor |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
@@ -70,7 +70,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin, points it at the work Jira and hands it the API token from `.env` |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
-| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel, graphics) |
+| `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel, custom layout) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
 | `vpn/` | VPN profiles and certificates -> see [vpn/README.md](vpn/README.md) |
 
@@ -650,31 +650,23 @@ line, collected here so it is findable.
   `omarchy refresh` for it must be installed as a plain file, not symlinked —
   which is why `install-omarchy-shell.sh` copies `omarchy/bar/vpn` into place
   instead of linking it.
-- **Omarchy sends video decode to the NVIDIA GPU on a hybrid laptop, and Chrome
-  tears itself apart over it.** `default/hypr/nvidia.lua` sets
-  `LIBVA_DRIVER_NAME=nvidia` whenever an NVIDIA GPU with GSP firmware is present.
-  It asks whether such a GPU *exists*, never whether it drives a display, and on
-  this XPS the panel hangs off the Intel iGPU while the RTX 3050 Ti is a bare 3D
-  controller with no DRM connectors at all, so even docked every output is
-  Intel's. Chrome therefore renders on Intel, picking the node itself and
-  reporting it as `--render-node-override=/dev/dri/renderD129` on its GPU
-  process, while decoding on NVIDIA, so every frame has to cross GPUs as a
-  dmabuf import. Those imports fail intermittently, which presents as a broken
-  *player* rather than a broken driver: YouTube and Reddit video flickering,
-  video black while the audio plays on, a window resize that fixes it for a
-  while by forcing a fresh buffer allocation, and eventually a dead GPU process
-  (`GPU process isn't usable. Goodbye.`, which 1Password logged here too).
-  `hypr/graphics.lua` points VA-API back at the GPU that owns the display. It
-  tests which GPU has a *connected output* rather than which one is `boot_vga`,
-  because this repo also runs on the desktop: `boot_vga` is whatever the firmware
-  picked as primary at POST, and a board that leaves its iGPU enabled can hand
-  that to Intel while a discrete card drives every screen, which would recreate
-  this same bug in mirror image. Requiring that no non-Intel GPU has a connected
-  output means a machine with screens on both falls through to Omarchy's default
-  instead of being guessed at. The one place the cause is visible is which driver
-  the GPU process has mapped:
+- **Before Omarchy 4.5, video decode went to the NVIDIA GPU on a hybrid laptop,
+  and Chrome tore itself apart over it.** `default/hypr/nvidia.lua` used to set
+  `LIBVA_DRIVER_NAME=nvidia` whenever an NVIDIA GPU with GSP firmware was present,
+  without asking whether it drove a display. On this XPS the panel hangs off the
+  Intel iGPU and the RTX 3050 Ti has no DRM connectors at all, so Chrome rendered
+  on Intel and decoded on NVIDIA, and every frame had to cross GPUs as a dmabuf
+  import. Those imports fail intermittently, which presents as a broken *player*
+  rather than a broken driver: video flickering, video black while the audio
+  plays on, a window resize that fixes it for a while, and eventually a dead GPU
+  process (`GPU process isn't usable. Goodbye.`). This repo carried a
+  `hypr/graphics.lua` override for it. 4.5 fixed it upstream: `nvidia.lua` now
+  sets the NVIDIA VA-API driver only when `omarchy-hw-nvidia-display` says NVIDIA
+  holds `boot_vga`, so the override was dropped. If the symptoms come back, the
+  one place the cause is visible is which driver the GPU process has mapped:
   `grep -o '/usr/lib/dri/.*_drv_video.so' /proc/<gpu-pid>/maps` answers
-  `nvidia_drv_video.so` before the override and `iHD_drv_video.so` after.
+  `nvidia_drv_video.so` when decode is on the wrong GPU and `iHD_drv_video.so`
+  when it is right.
 - **Hyprland's `hl.env` reaches Chrome through an `import-environment` that only
   runs at login.** `default/hypr/autostart.lua` runs `systemctl --user
   import-environment $(env | cut -d'=' -f 1)` as an exec-once, which is how the
