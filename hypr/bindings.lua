@@ -37,6 +37,11 @@ o.bind("SUPER + Q", "Close window", hl.dsp.window.close())
 hl.unbind("SUPER + L")
 o.bind("SUPER + L", "Lock system", "omarchy-system-lock")
 
+-- The backwards layout cycle goes through the same toggle as the bar, so it
+-- includes custom_center on the ultrawide (see install-omarchy-workspaces.sh).
+hl.unbind("SUPER + ALT + L")
+o.bind("SUPER + ALT + L", "Cycle workspace layout back", "omarchy-supplement-workspace-layout-toggle back")
+
 -- Audible feedback on volume changes. Rebinding the keys means repeating the
 -- default's { locked, repeating } options, or volume stops working on the lock
 -- screen and stops repeating when the key is held.

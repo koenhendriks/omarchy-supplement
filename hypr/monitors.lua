@@ -127,8 +127,34 @@ local function block_of(output, fallback)
   return fallback
 end
 
+-- Hyprland reports neither a workspace rule's layout nor, once a saved mode from
+-- the bar overrides it, the layout the workspace started with. The layout toggle
+-- (omarchy/bin/omarchy-supplement-workspace-layout-toggle) reads this list to
+-- know which workspaces have custom_center to cycle back to.
+local custom_center_workspaces = {}
+
+local function record_custom_center()
+  local dir = require("default.hypr.paths").state_home .. "/omarchy-supplement"
+  local path = dir .. "/custom-center-workspaces"
+  local file = io.open(path, "w")
+
+  if not file then
+    os.execute(("mkdir -p %q"):format(dir))
+    file = io.open(path, "w")
+  end
+
+  if file then
+    file:write(table.concat(custom_center_workspaces, "\n"), "\n")
+    file:close()
+  end
+end
+
 local function pin_workspaces(monitor, layout, block)
   for slot = 1, SLOTS do
+    if layout == "lua:custom_center" then
+      table.insert(custom_center_workspaces, tostring(block * SLOTS + slot))
+    end
+
     hl.workspace_rule({
       workspace = tostring(block * SLOTS + slot),
       monitor = monitor,
@@ -173,3 +199,5 @@ else
   pin_workspaces("DP-1", "lua:custom_center", block_of("DP-1", 1))
   pin_workspaces("HDMI-A-1", "dwindle", block_of("HDMI-A-1", 0))
 end
+
+record_custom_center()

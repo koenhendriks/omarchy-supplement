@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# Omarchy's omarchy-hyprland-workspace-layout-toggle cycles dwindle, scrolling
+# and floating, and has no way back to custom_center: it steps from any layout it
+# does not know to dwindle, and landing on dwindle (Omarchy's default) deletes the
+# saved mode, so custom_center only returns at the next reload, behind the bar's
+# back. On the workspaces monitors.lua pins to custom_center this cycles
+# custom_center -> dwindle -> scrolling -> floating instead; everywhere else the
+# stock toggle runs unchanged.
+
+DIRECTION=${1:-next}
+if [[ $DIRECTION != "next" && $DIRECTION != "back" ]]; then
+  echo "Usage: omarchy-supplement-workspace-layout-toggle [back]" >&2
+  exit 1
+fi
+
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+CUSTOM=lua:custom_center
+CUSTOM_LIST="$STATE_HOME/omarchy-supplement/custom-center-workspaces"
+MODES_DIR="$STATE_HOME/omarchy/workspace-layouts"
+
+WORKSPACE=$(hyprctl activeworkspace -j | jq -r '.id')
+
+if ! [[ $WORKSPACE =~ ^[0-9]+$ ]] || ! grep -qx "$WORKSPACE" "$CUSTOM_LIST" 2>/dev/null; then
+  exec omarchy-hyprland-workspace-layout-toggle "$@"
+fi
+
+MODE_FILE="$MODES_DIR/$WORKSPACE.lua"
+
+# No saved mode means the workspace is on the rule monitors.lua gave it. Not
+# omarchy-hyprland-workspace-layout-current: with a saved default.lua it reports
+# that default for a workspace that has no mode of its own.
+CURRENT=$(sed -n 's/.*mode = "\([a-z]*\)".*/\1/p' "$MODE_FILE" 2>/dev/null)
+CURRENT=${CURRENT:-$CUSTOM}
+
+ORDER=("$CUSTOM" dwindle scrolling floating)
+INDEX=0
+for i in "${!ORDER[@]}"; do
+  [[ ${ORDER[$i]} == "$CURRENT" ]] && INDEX=$i
+done
+
+if [[ $DIRECTION == "back" ]]; then
+  NEW_MODE=${ORDER[$(((INDEX + ${#ORDER[@]} - 1) % ${#ORDER[@]}))]}
+else
+  NEW_MODE=${ORDER[$(((INDEX + 1) % ${#ORDER[@]}))]}
+fi
+
+case $NEW_MODE in
+  dwindle) MESSAGE=$(omarchy-i18n layout.workspaceTiling) ;;
+  scrolling) MESSAGE=$(omarchy-i18n layout.workspaceScrolling) ;;
+  floating) MESSAGE=$(omarchy-i18n layout.workspaceFloating) ;;
+  *) MESSAGE="Workspace layout set to centre master" ;;
+esac
+
+# Shares the stock toggle's notification id, so either one replaces the other's
+# notification instead of stacking a second.
+notify_layout() {
+  local state="$STATE_HOME/omarchy/workspace-layout-notification"
+  local last id
+  [[ -r $state ]] && read -r last <"$state"
+  if id=$(omarchy-notification-send -p -r "${last:-0}" -g 󱂬 "$1") && [[ $id =~ ^[0-9]+$ ]]; then
+    mkdir -p "$(dirname "$state")" && printf '%s\n' "$id" >"$state"
+  fi
+}
+
+# Applied through o.workspace_mode even for custom_center, because leaving
+# floating has to tile again the windows the floating mode claimed.
+APPLY="o.workspace_mode({ workspace = \"$WORKSPACE\", mode = \"$NEW_MODE\" })"
+
+if ! hyprctl eval "$APPLY" >/dev/null 2>&1; then
+  notify_layout "$(omarchy-i18n layout.needsReload)"
+  exit 1
+fi
+
+# custom_center is what the monitors.lua rule restores by itself, so it is saved
+# by removing the override. Every other mode is saved even when it is Omarchy's
+# default, since removing it would hand the workspace back to custom_center.
+if [[ $NEW_MODE == "$CUSTOM" ]]; then
+  rm -f "$MODE_FILE"
+else
+  mkdir -p "$MODES_DIR" && printf '%s\n' "$APPLY" >"$MODE_FILE"
+fi
+
+notify_layout "$MESSAGE"
+
+omarchy-shell -q omarchy.workspaces refresh
+omarchy-shell -q omarchy.dock refresh
+
+# Same as the stock toggle: the titlebar plugin only loads while the config
+# loads, so the first floating workspace of a session needs a reload.
+if [[ $NEW_MODE == "floating" ]] && ! hyprctl plugin list -j 2>/dev/null | jq -e 'any(.[]?; .name == "hyprbars")' >/dev/null 2>&1; then
+  omarchy-restart-hyprctl
+fi
