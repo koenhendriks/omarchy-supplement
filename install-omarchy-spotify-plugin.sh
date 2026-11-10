@@ -26,7 +26,7 @@ echo "Installing the Spotify plugin's runtime dependencies"
 # `pacman -Q` when they are present, which is what makes keeping it free.
 omarchy-pkg-add gnome-keyring libsecret socat avahi
 
-# Same reason as install-omarchy-notification-plugin.sh: `omarchy plugin add`
+# `omarchy plugin add`
 # exits non-zero on an id that is already installed, and this script is *sourced*
 # by install-all.sh, so an unguarded second run would take the whole run with it.
 #

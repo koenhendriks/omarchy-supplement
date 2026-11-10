@@ -84,7 +84,6 @@ fi
 . ./install-omarchy-calculator-plugin.sh
 . ./install-omarchy-spotify-plugin.sh
 . ./install-omarchy-shell.sh
-. ./install-omarchy-notification-plugin.sh
 . ./install-omarchy-jira-plugin.sh
 . ./enable-sshd.sh
 

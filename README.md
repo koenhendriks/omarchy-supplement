@@ -68,7 +68,6 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-calculator-plugin.sh` | Adds the menu calculator plugin, which stands in for the built-in `omarchy.menu` |
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
-| `install-omarchy-notification-plugin.sh` | Adds the third-party notification centre, patched to find the cloned service |
 | `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin, points it at the work Jira and hands it the API token from `.env` |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel, graphics) |
@@ -222,9 +221,9 @@ first-party service, with two patches. The first moves toasts from the top-right
 corner, where `Service.qml` hardcodes them, to the top centre. The second adds a
 `mutedApps` list, because the shell has no per-app mute at all — `notifications.json`
 holds a single `dnd` boolean and nothing else. A muted app is routed down the
-existing DND branch: no toast, but still a history entry, so the notification
-centre can be scrolled back through. The list is `MUTED_APPS` at the top of the
-installer, matched case-insensitively against the freedesktop `app_name`.
+existing DND branch: no toast, but still a history entry, so it can still be
+scrolled back through. The list is `MUTED_APPS` at the top of the installer,
+matched case-insensitively against the freedesktop `app_name`.
 
 `Nextcloud` is on it. Its desktop client re-announces every sync failure and has
 no setting that stops it: every notification toggle in `nextcloud.cfg` is already
@@ -242,13 +241,11 @@ shipped list, not a replacement for it, and does not need a copy of its contents
 Excluding a path stops the client updating what is already on the server; it does
 not delete it. The client has to be restarted to pick the patterns up.
 
-The notification centre itself is a third-party bar widget,
-[Shavanced/omarchy-notification-center-plugin](https://github.com/Shavanced/omarchy-notification-center-plugin),
-installed by `install-omarchy-notification-plugin.sh` and placed in the bar as
-`shavanced.notification-center`. It ships asking for the first-party service by
-name, which the clone displaces, so the installer patches that lookup to go
-through `resolveEnabledId()` — see below. Without that patch the two cannot
-coexist and the widget silently shows nothing.
+History is Omarchy's own, on SUPER + SHIFT + ALT + comma. The third-party
+`shavanced.notification-center` bar widget that used to provide it was dropped
+when notifications 2.0.0 (Omarchy 4.5.0) removed nearly every service property it
+bound to (`popupModel`, `historyDir`, `clearHistory`, ...), leaving it with
+unresolved colours and an empty list.
 
 **The menu** is the built-in one with arithmetic added.
 [koenhendriks/omarchy-menu-calculator-plugin](https://github.com/koenhendriks/omarchy-menu-calculator-plugin)
@@ -382,13 +379,12 @@ line, collected here so it is findable.
   single notification daemon on the bus — but `shell.qml`'s `serviceFor()` does no
   `clonedFrom` resolution, so `firstPartyServiceFor("omarchy.notifications")`
   returns null for as long as `<user>.notifications` is the live implementation.
-  The third-party notification centre then renders an empty popup: no live list,
-  no history, no DND, and nothing in the journal to say why, because a null there
-  is a perfectly legal binding result. `PluginRegistry.resolveEnabledId()` is the
-  resolution `serviceFor()` lacks — it maps a built-in id onto whichever enabled
-  plugin declares `clonedFrom` it and returns the id unchanged when none does —
-  and `install-omarchy-notification-plugin.sh` patches the widget to go through
-  it. Anything else that looks a first-party service up by name has the same hole.
+  A widget bound to it renders empty, with nothing in the journal to say why,
+  because a null there is a perfectly legal binding result.
+  `PluginRegistry.resolveEnabledId()` is the resolution `serviceFor()` lacks: it
+  maps a built-in id onto whichever enabled plugin declares `clonedFrom` it and
+  returns the id unchanged when none does.
+  Anything else that looks a first-party service up by name has the same hole.
 - **A bar layout entry naming a cloned widget renders an empty slot, silently.**
   `serviceFor()`'s hole above has a twin on the bar. `shell.qml`'s
   `syncPluginWidgets()` registers each *enabled* widget under its own
@@ -464,8 +460,8 @@ line, collected here so it is findable.
   looks for all the world like `omarchy update` reintroducing it. The two installers
   whose upstream is ours now call `plugin_add_or_update()`, which updates instead
   of skipping and restarts the shell when the commit actually moved. The spotify
-  and notification-center installers still only add: pulling a third party's main
-  on every run is unreviewed code landing in the shell.
+  installer still only adds: pulling a third party's main on every run is
+  unreviewed code landing in the shell.
 - **A stale `<user>.notifications` swallows notification buttons.** The clone is
   rebuilt only when `install-omarchy-notifications.sh` runs; `omarchy update`
   replaces the packaged plugin but leaves the clone alone. Omarchy 4.5.0 shipped

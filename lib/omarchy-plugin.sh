@@ -94,8 +94,8 @@ restart_shell() {
 # menu ran for weeks without the appLibrary fix it already had a release for.
 #
 # Only for plugins whose upstream is ours. Pulling a third party's main on every
-# run is unreviewed code landing in the shell, which is why the spotify and
-# notification-center installers still only add.
+# run is unreviewed code landing in the shell, which is why the spotify
+# installer still only adds.
 plugin_add_or_update() {
     local url="$1" before after
 
