@@ -33,7 +33,6 @@ fi
 . ./copy-resources.sh
 . ./install-snap-pac.sh
 . ./install-browser.sh
-. ./remove-default-browsers.sh
 . ./remove-webapps.sh
 . ./remove-preinstalled.sh
 . ./install-cronie.sh

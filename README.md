@@ -29,9 +29,8 @@ install down first, then add packages, then layer config on top.
 | --- | --- |
 | `install-all.sh` | Runs everything below, in order |
 | `install-browser.sh` | Installs Chrome and makes it the default browser |
-| `remove-default-browsers.sh` | Drops the browsers Omarchy ships (firefox, brave, edge, zen) |
 | `remove-webapps.sh` | Clears every Omarchy webapp |
-| `remove-preinstalled.sh` | Drops preinstalled apps not wanted here (obsidian, libreoffice, signal, …) |
+| `remove-preinstalled.sh` | Drops preinstalled apps not wanted here (aether, monologue, obsidian, libreoffice, pinta, cliamp) |
 | `install-bind.sh` | `bind`, for `dig` and friends |
 | `install-nmap.sh` | nmap, for port and service scans |
 | `install-nano.sh` | nano, which Omarchy does not ship |
@@ -68,6 +67,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
 | `install-omarchy-jira-plugin.sh` | Adds the menu Jira plugin, points it at the work Jira and hands it the API token from `.env` |
+| `enable-sshd.sh` | Omarchy's sshd setup with the GitHub keys of `koenhendriks`: key-only logins, rate-limited port 22 |
 | `lib/omarchy-plugin.sh` | Shared clone/patch/restart helpers for the plugin installers |
 | `hypr/` | Hyprland override modules in Lua (bindings, monitors, windows, input, looknfeel, custom layout) |
 | `omarchy/` | Quickshell bar layout fragment, plus the scripts its command modules run |
@@ -476,6 +476,12 @@ line, collected here so it is findable.
   clicking a screenshot toast opened imv instead of the editor. After an Omarchy
   update that touches `shell/plugins/notifications`, re-run the installer; a
   patch that no longer matches fails loudly and leaves the previous clone in place.
+- **`omarchy remove preinstalls` takes the AI CLIs with it.** Besides web apps,
+  TUIs and a dozen packages, it runs `omarchy-mise-default-tools disable`, which
+  makes mise ignore `/etc/mise/conf.d/omarchy-tools.toml`. That file is where
+  claude, codex, opencode, gh, node and uv come from on this machine; the user's
+  own mise config declares only go. So `remove-preinstalled.sh` keeps its own
+  package list rather than calling the native command.
 - **There is no per-app mute anywhere in the shell.** The quiet state is a
   single `dnd` boolean and that is the whole of it; the only per-app list in
   `Delivery.js` is `isEphemeral()`, hardcoded to `notify-send` and
