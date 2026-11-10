@@ -465,9 +465,18 @@ line, collected here so it is findable.
   of skipping and restarts the shell when the commit actually moved. The spotify
   and notification-center installers still only add: pulling a third party's main
   on every run is unreviewed code landing in the shell.
-- **There is no per-app mute anywhere in the shell.** `notifications.json` is
-  `{version, dnd}` and that is the whole of it; the only per-app list in
-  `NotificationLogic.js` is `isEphemeralApp()`, hardcoded to `notify-send` and
+- **A stale `<user>.notifications` swallows notification buttons.** The clone is
+  rebuilt only when `install-omarchy-notifications.sh` runs; `omarchy update`
+  replaces the packaged plugin but leaves the clone alone. Omarchy 4.5.0 shipped
+  notifications 2.0.0, which draws `omarchy-notification-send --action` buttons,
+  and switched screenshots to omasnap, whose toast offers Open and Edit. The 1.0.0
+  clone drew neither button, and a card click runs the *first* action, so
+  clicking a screenshot toast opened imv instead of the editor. After an Omarchy
+  update that touches `shell/plugins/notifications`, re-run the installer; a
+  patch that no longer matches fails loudly and leaves the previous clone in place.
+- **There is no per-app mute anywhere in the shell.** The quiet state is a
+  single `dnd` boolean and that is the whole of it; the only per-app list in
+  `Delivery.js` is `isEphemeral()`, hardcoded to `notify-send` and
   `omarchy-action`, and it decides recording, not display. Muting one noisy app
   means patching the service, which means cloning it — hence the hole above.
 - **`omarchy plugin add --enable` puts a bar widget on the bar itself, and the

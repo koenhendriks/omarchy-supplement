@@ -52,48 +52,40 @@ def require(text, old, new, label):
     return text.replace(old, new)
 
 
-# Toasts are hardcoded to the top-right corner ("Toasts are fixed to the
-# top-right corner", Service.qml) with no setting to move them; mako put them at
-# top-center and that is where they belong here too. Only the horizontal
-# alignment changes -- margins.top still comes from popupPlacement(), so a toast
-# keeps clearing a top bar by the same clearance it always did.
+# The deck hangs from the top-right corner with no setting to move it; mako put
+# toasts at top-center and that is where they belong here too. The layer surface
+# drops its right anchor, which makes the compositor centre it, and the clipper
+# inside it centres too. The clipper's width used to carry margins.right as the
+# gap from the screen edge; with no edge to clear it gets the motion inset on
+# both sides instead, or the deck sits a few pixels left of centre.
+# margins.top still comes from marginsFor(), so a toast keeps clearing a top bar.
+source = require(
+    source,
+    """      anchors { top: true; bottom: true; right: true }""",
+    """      anchors { top: true; bottom: true }""",
+    "surface anchors",
+)
+
 source = require(
     source,
     """        anchors.right: parent.right
         anchors.top: parent.top
-        anchors.topMargin: popupWindow.popupPlacement.margins.top
-        anchors.rightMargin: popupWindow.popupPlacement.margins.right""",
+        anchors.topMargin: surface.margins.top
+        // Room for the arrival's scale animation, and the gap from the edge.
+        readonly property int motionInset: Style.spacing.sm
+        width: service.notificationWidth + motionInset + surface.margins.right""",
     """        anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: popupWindow.popupPlacement.margins.top""",
-    "toast column anchor",
+        anchors.topMargin: surface.margins.top
+        // Room for the arrival's scale animation on either side.
+        readonly property int motionInset: Style.spacing.sm
+        width: service.notificationWidth + 2 * motionInset""",
+    "deck clipper",
 )
 
-# The column is one card wide, so each card's own alignment decides where it
-# sits when widths differ between toasts.
-source = require(
-    source,
-    """            Layout.preferredWidth: card.implicitWidth
-            Layout.alignment: Qt.AlignRight""",
-    """            Layout.preferredWidth: card.implicitWidth
-            Layout.alignment: Qt.AlignHCenter""",
-    "card slot alignment",
-)
-
-source = require(
-    source,
-    """            NotificationCard {
-              id: card
-              anchors.right: parent.right""",
-    """            NotificationCard {
-              id: card
-              anchors.horizontalCenter: parent.horizontalCenter""",
-    "card anchor",
-)
-
-# There is no per-app mute in the shell -- notifications.json holds a single
-# `dnd` boolean and nothing else -- so the filter has to go in the service, at
-# the one point every notification passes through.
+# There is no per-app mute in the shell -- the quiet state is a single `dnd`
+# boolean and nothing else -- so the filter has to go in the service, at the
+# one point every notification passes through.
 source = require(
     source,
     """  function handleNotification(notification) {""",
@@ -101,25 +93,23 @@ source = require(
   // that writes this list, so the lookup below stays a plain comparison.
   readonly property var mutedApps: %s
 
-  function isMuted(notification) {
-    return mutedApps.indexOf(String(notification.appName || "").toLowerCase()) !== -1
+  function isMuted(row) {
+    return mutedApps.indexOf(String(row.app || "").toLowerCase()) !== -1
   }
 
   function handleNotification(notification) {""" % muted,
     "muted app list",
 )
 
-# Muted apps reuse the DND branch rather than getting one of their own: the
-# wanted behaviour is identical (no toast, but a history entry, so the
-# notification centre can still be scrolled back through), and isEphemeral()
-# already decides which of those are worth recording at all.
+# Muted apps reuse the quiet branch rather than getting one of their own: the
+# wanted behaviour is identical (no toast, but a history entry, so it can still
+# be scrolled back through), and isEphemeral() already decides which of those are worth recording at all. Checked before
+# quietReason(), whose DND bypasses (Omarchy's own toasts, verification codes)
+# exist to cut through DND, and nothing should let a muted app cut through a mute.
 source = require(
     source,
-    """    if (service.doNotDisturb && !shouldBypassDnd(notification)) {""",
-    """    // A muted app takes the same route, whatever its urgency: shouldBypassDnd()
-    // exists so a critical chat message can still cut through DND, and nothing
-    // should let a muted app cut through a mute.
-    if (service.isMuted(notification) || (service.doNotDisturb && !shouldBypassDnd(notification))) {""",
+    """    var muted = Delivery.quietReason(row, doNotDisturb)""",
+    """    var muted = service.isMuted(row) ? "muted" : Delivery.quietReason(row, doNotDisturb)""",
     "muted app filter",
 )
 
