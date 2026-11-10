@@ -108,7 +108,10 @@ with open(out_path, "w") as handle:
     handle.write("\n")
 PY
 
-if cmp -s "$MERGED" "$SHELL_CONFIG"; then
+# Compared as parsed JSON, not bytes: the shell rewrites shell.json in its own
+# formatting when it starts, so a byte compare would see a change on every run
+# and restart the shell each time.
+if [ -f "$SHELL_CONFIG" ] && [ "$(jq -S . "$MERGED")" = "$(jq -S . "$SHELL_CONFIG")" ]; then
     echo "shell.json bar layout already up to date"
     rm -f "$MERGED"
 else
@@ -121,8 +124,11 @@ else
     cat "$MERGED" >"$SHELL_CONFIG"
     rm -f "$MERGED"
 
-    # The shell hot-reloads shell.json on save, so no restart is needed.
-    echo "Bar layout applied (shell.json hot-reloads)"
+    # The shell does hot-reload shell.json, but a reloaded bar layout comes back
+    # half-initialised: Indicators.qml reads `bar` off a null panel and the
+    # active window title and indicator toggles are simply missing, with no
+    # error beyond that TypeError in the journal. Only a restart rebuilds it.
+    restart_shell
 fi
 
 echo "Omarchy shell setup complete!"

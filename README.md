@@ -603,8 +603,11 @@ line, collected here so it is findable.
   under `~/.config/omarchy/plugins/` logs `Local plugin changed, reloading` and
   the shell keeps serving the previously compiled QML, so an edit looks like it
   did nothing — the stale copy even reports errors against the *new* line
-  numbers, which makes it look like the edit did not save. `shell.json` genuinely
-  does hot-reload; QML does not.
+  numbers, which makes it look like the edit did not save. `shell.json` does
+  hot-reload, but a changed bar layout comes back half-initialised: the active
+  window title and the indicator toggles vanish and the journal only shows
+  `Indicators.qml: Cannot read property 'bar' of null`. `install-omarchy-shell.sh`
+  restarts the shell whenever it writes the layout.
 - **A Quickshell widget is "enabled" by being in the bar layout.** There is no
   separate on/off list: `omarchy plugin enable omarchy.media` just inserts
   `{"id": "omarchy.media"}` into `bar.layout` in `shell.json`, and
