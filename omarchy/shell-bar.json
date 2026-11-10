@@ -82,6 +82,9 @@
         "id": "omarchy.power"
       },
       {
+        "id": "omarchy.elsewhen"
+      },
+      {
         "id": "@user@.clock",
         "format": "ddd d MMM HH:mm",
         "formatAlt": "d MMMM 'W'ww yyyy",
