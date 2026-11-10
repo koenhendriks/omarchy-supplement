@@ -10,7 +10,8 @@ for _, class in ipairs({
   "^(Bitwarden)$",
   "^(org\\.kde\\.dolphin)$",
   "^(org\\.kde\\.ark)$",
-  "^(1password)$",
+  -- 1Password 8.12 renamed its app id to the reverse-DNS form.
+  "^(1[pP]assword|com\\.onepassword\\.OnePassword)$",
   "^(xdg-desktop-portal-gtk)$",
 }) do
   o.window(class, { float = true, persistent_size = true })

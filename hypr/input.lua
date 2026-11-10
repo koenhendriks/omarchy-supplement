@@ -6,8 +6,10 @@ hl.config({
     -- that was focused by keyboard until it enters a different window.
     follow_mouse = 2,
 
-    -- Drop Omarchy's "compose:caps,shift:both_capslock_cancel" and keep a plain
-    -- Caps Lock.
+    -- Drop Omarchy's "omarchy:shift_caps_compose" (Shift + Caps Lock as the
+    -- compose key) so Caps Lock and Shift + Caps Lock both stay plain Caps
+    -- Lock. Stock also appends "grp:alts_toggle" when a non-Latin layout is
+    -- configured; none is here, so clearing the whole string loses nothing.
     kb_options = "",
   },
 })
@@ -26,8 +28,9 @@ hl.config({
 -- enables either, so there is no conflict today -- but adding one later means
 -- picking a different count for it, not stacking it on three.
 --
--- Omarchy binds no gestures of its own (its stock input.lua ships only a
--- commented-out three-finger example), so there is nothing to unset first.
+-- Omarchy binds no gestures of its own (the user template it installs at
+-- ~/.config/hypr/input.lua only carries a commented-out three-finger example),
+-- so there is nothing to unset first.
 --
 -- Only the XPS has a trackpad, so unlike monitors.lua this needs no per-machine
 -- branch: on the desktop no swipe events ever arrive and the gestures are inert.

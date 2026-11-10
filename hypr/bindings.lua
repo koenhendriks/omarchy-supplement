@@ -18,6 +18,11 @@
 hl.unbind("SUPER + RETURN")
 o.bind("SUPER + RETURN", "Swap with master", hl.dsp.layout("swapwithmaster"))
 o.bind("SUPER + backslash", "Swap with second master", hl.dsp.layout("swapwithmaster2"))
+-- Omarchy 4.5 put input language switching on SUPER + I and SUPER + SHIFT + I
+-- (default/hypr/bindings/input-method.lua). Only one layout is used here, so
+-- both are released rather than moved, and SUPER + I stays on add master.
+hl.unbind("SUPER + I")
+hl.unbind("SUPER + SHIFT + I")
 o.bind("SUPER + I", "Add master", hl.dsp.layout("addmaster"))
 o.bind("SUPER + D", "Remove master", hl.dsp.layout("removemaster"))
 o.bind("CTRL + ALT + T", "Terminal", { omarchy = "terminal" })
@@ -28,9 +33,9 @@ o.bind("ALT + SHIFT + 4", "Screenshot", "omarchy-capture-screenshot")
 -- File manager on SUPER + E (Omarchy's own is SUPER + SHIFT + F).
 o.bind("SUPER + E", "File manager", { launch = "nautilus --new-window" })
 
--- Close windows with SUPER + Q rather than Omarchy's SUPER + W.
+-- Close windows with SUPER + Q only. Omarchy binds SUPER + Q to close as well
+-- as SUPER + W, so binding it again here would close twice per press.
 hl.unbind("SUPER + W")
-o.bind("SUPER + Q", "Close window", hl.dsp.window.close())
 
 -- Lock on SUPER + L. Quattro moved lock to SUPER + CTRL + L and gave SUPER + L
 -- to the workspace layout toggle, which this takes back.
