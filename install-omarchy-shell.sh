@@ -84,6 +84,23 @@ except FileNotFoundError:
 
 config.setdefault("version", 1)
 config.setdefault("bar", {})
+
+# The bar saves some widget state on the widget's own layout entry -- the tray's
+# pinned and hidden icons, for one -- and replacing the layout wholesale wipes it,
+# which drops every pinned tray icon back into the collapsed drawer. So each
+# entry starts from the live entry of the same id and the fragment's keys are
+# laid over it: the fragment still decides which widgets sit where.
+live = {}
+for section in (config["bar"].get("layout") or {}).values():
+    for entry in section if isinstance(section, list) else []:
+        if isinstance(entry, dict) and "id" in entry:
+            live[entry["id"]] = entry
+
+for section in (fragment.get("layout") or {}).values():
+    for index, entry in enumerate(section):
+        if isinstance(entry, dict) and entry.get("id") in live:
+            section[index] = {**live[entry["id"]], **entry}
+
 config["bar"].update(fragment)
 
 with open(out_path, "w") as handle:

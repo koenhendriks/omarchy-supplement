@@ -63,6 +63,7 @@ install down first, then add packages, then layer config on top.
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
 | `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
+| `install-omarchy-workspaces.sh` | Rebuilds the `<user>.workspaces` plugin so clicking the active workspace cycles through `custom_center` too, and puts the toggle on `PATH` |
 | `install-omarchy-calculator-plugin.sh` | Adds the menu calculator plugin, which stands in for the built-in `omarchy.menu` |
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
 | `install-omarchy-shell.sh` | Merges `omarchy/shell-bar.json` into the Quickshell bar layout, installs the bar's command scripts, and puts the VPN toggle on `PATH` as `vpn` |
@@ -195,7 +196,17 @@ bar is picked up instead of frozen at the day it was cloned. Re-run
 code the patches anchor to, the script refuses to write and restores the previous
 clone rather than leaving a broken bar.
 
-Two plugins are cloned this way — bar and clock — and the
+**Centre master in the layout cycle.** Clicking the active workspace in the bar
+(and `SUPER + ALT + L`) cycles its layout, and the stock
+`omarchy-hyprland-workspace-layout-toggle` only knows dwindle, scrolling and
+floating. `install-omarchy-workspaces.sh` clones the workspaces widget, points
+its click at `omarchy/bin/omarchy-supplement-workspace-layout-toggle` and gives
+`custom_center` a columns glyph. That toggle cycles `custom_center`, dwindle,
+scrolling and floating on the workspaces `hypr/monitors.lua` lists in
+`~/.local/state/omarchy-supplement/custom-center-workspaces`, and hands every
+other workspace to the stock one.
+
+Three plugins are cloned this way — bar, clock and workspaces — and the
 mechanics they share live in `lib/omarchy-plugin.sh`: staging the old copy outside
 the watched plugins directory, waiting for the shell's IPC before cloning,
 rolling back a failed patch, and the pid-checked restart. Each installer is then
@@ -394,9 +405,13 @@ line, collected here so it is findable.
 - **Anything the bar stores by being clicked is reverted by the next installer
   run.** `install-omarchy-shell.sh` merges `omarchy/shell-bar.json` with
   `config["bar"].update(fragment)`, which is per *top-level key*, and `layout` is
-  one of them. So the whole layout is replaced wholesale: not just widget order,
-  but every per-widget setting living on a layout entry. The clock is where this
-  shows: right-clicking it walks `CLOCK_FORMATS` and writes the chosen format
+  one of them. So the whole layout is replaced wholesale: widget order, and every
+  widget the fragment does not name. Per-widget settings living on a layout entry
+  used to go with it, which emptied the tray's `pinned` list and dropped every
+  tray icon into the collapsed drawer behind the chevron. The merge now starts
+  each entry from the live entry of the same id, so settings the fragment does
+  not mention (the tray's `pinned` and `hidden`) survive, while a key the
+  fragment *does* set still wins. The clock is where that shows: right-clicking it walks `CLOCK_FORMATS` and writes the chosen format
   back to its `shell.json` entry, so a format picked by clicking survives
   restarts and then quietly goes back to the fragment's on the next
   `./install-all.sh`. It reads as the installer having no opinion about the clock
@@ -724,6 +739,18 @@ line, collected here so it is findable.
   the block from that file and pins the whole block. The file is written at
   `hyprland.start`, after the config has parsed, so the first login after the
   update pins by the hardcoded fallbacks and needs one `hyprctl reload`.
+- **A layout picked from the bar outlives the `monitors.lua` rule, and stock has
+  no way back to `custom_center`.** Clicking the active workspace saves the
+  chosen mode to `~/.local/state/omarchy/workspace-layouts/<id>.lua`, which
+  Omarchy loads after the user config, so its workspace rule beats the
+  `custom_center` one -- a double click left the ultrawide floating across
+  reloads. The stock toggle steps from any layout it does not know to dwindle,
+  and landing on dwindle (Omarchy's default) deletes the saved file, so
+  `custom_center` only came back at the next reload, with the bar showing
+  tiling until then. Deleting the file and `hyprctl reload` restores it by hand;
+  `omarchy-supplement-workspace-layout-toggle` puts it in the cycle. Hyprland
+  reports neither a rule's layout nor what a saved mode replaced, which is why
+  `hypr/monitors.lua` writes the list of `custom_center` workspaces out for it.
 - **DisplayPort MST connector names are not stable, even within one boot.** The
   dock's two Dells arrive over MST, and the kernel names MST connectors as it
   walks the topology rather than by physical port: one login enumerated them as
