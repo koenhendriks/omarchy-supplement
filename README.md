@@ -63,7 +63,6 @@ install down first, then add packages, then layer config on top.
 | `install-omasnap.sh` | Installs `omasnap/omasnap.conf`: the screenshot editor opens as a window, so it lands on the focused monitor |
 | `install-omarchy-bar.sh` | Rebuilds the `<user>.bar` plugin: a patched clone with `maxWidth` |
 | `install-omarchy-notifications.sh` | Rebuilds the `<user>.notifications` plugin: top-centre toasts and a muted-app list |
-| `install-omarchy-clock.sh` | Rebuilds the `<user>.clock` plugin: makes `centerOnBar` configurable |
 | `install-omarchy-workspaces.sh` | Rebuilds the `<user>.workspaces` plugin so clicking the active workspace cycles through `custom_center` too, and puts the toggle on `PATH` |
 | `install-omarchy-calculator-plugin.sh` | Adds the menu calculator plugin, which stands in for the built-in `omarchy.menu` |
 | `install-omarchy-spotify-plugin.sh` | Adds the Omarchy Spotify plugin and installs its playback backend up front |
@@ -161,18 +160,23 @@ the per-core inputs beside it. Load is a delta between runs, cached in
 nothing about now, and caching means the figure covers the poll interval without
 the script having to sleep.
 
-**Clock on the right.** `panels/clock/Panel.qml` hardcodes `centerOnBar: true`,
-and `Ui/PopupCard.qml` honours that by ignoring the icon entirely and using
-`window.width / 2` — so a clock anywhere but the middle opens its calendar in the
-centre of the screen. `install-omarchy-clock.sh` clones the widget and turns that
-literal into `root.setting("centerOnBar", true)`, so stock behaviour stays the
-default and `omarchy/shell-bar.json` decides per placement. `omarchy.weather`
-hardcodes it the same way, and will need the same treatment if it ever leaves the
-centre.
+**Clock on the right.** Before 4.5, `panels/clock/Panel.qml` hardcoded
+`centerOnBar: true`, so a clock anywhere but the middle opened its calendar in
+the centre of the screen, and this repo carried a `<user>.clock` clone to make it
+configurable. 4.5 ships both the clock and the weather panel with
+`centerOnBar: false`, which opens each under its own icon, so the clone was
+dropped and the layout uses `omarchy.clock` again.
 
-Cloning a bar widget rewrites the layout entry's id in place — `omarchy.clock`
-becomes `<user>.clock` — and keeps the entry's own settings. Because that id is
-per-user, the fragment spells it `@user@.clock` and
+**Centre of the bar.** 4.5 splits the centre into `centerBegin`, `center` and
+`centerEnd`: `center` is the centred group and the other two hang off its edges.
+That replaces the old `centerAnchor` key, which 4.5 no longer reads. The active
+window title is the whole of `center`, with the indicators before it and weather,
+updates and the keyboard layout after it, so the title stays in the middle of the
+bar however wide the indicators are.
+
+Cloning a bar widget rewrites the layout entry's id in place
+(`omarchy.workspaces` becomes `<user>.workspaces`) and keeps the entry's own
+settings. Because that id is per-user, the fragment spells it `@user@.workspaces` and
 `install-omarchy-shell.sh` substitutes the placeholder when merging, so the
 checked-in layout carries no particular username.
 
@@ -184,10 +188,11 @@ built-in bar into `~/.config/omarchy/plugins/<user>.bar` and adds one: a
 `omarchy/shell-bar.json`). That centres the bar on DP-1 and leaves the 2560px
 Dell untouched.
 
-What it narrows is the bar's **content**, not its window: the window still spans
-the screen, paints nothing itself, and masks pointer input to the painted strip
-so the uncovered edges stay clickable. Insetting the window with margins is the
-obvious implementation and it breaks every panel — see the note below.
+What it narrows is the bar's **strip**, not its window. Since 4.5 the stock
+bar's window already spans the whole screen, draws only a strip along its edge
+and masks pointer input to that strip, so the patch narrows and centres the strip
+and the uncovered edges stay clickable. Insetting the window with margins is the
+obvious implementation and it breaks every panel: see the note below.
 
 The clone is **derived, never hand-edited**: every run rebuilds it from the
 packaged bar and re-applies the patches, so an `omarchy update` that improves the
@@ -206,7 +211,7 @@ scrolling and floating on the workspaces `hypr/monitors.lua` lists in
 `~/.local/state/omarchy-supplement/custom-center-workspaces`, and hands every
 other workspace to the stock one.
 
-Three plugins are cloned this way — bar, clock and workspaces — and the
+Three plugins are cloned this way (bar, workspaces and notifications), and the
 mechanics they share live in `lib/omarchy-plugin.sh`: staging the old copy outside
 the watched plugins directory, waiting for the shell's IPC before cloning,
 rolling back a failed patch, and the pid-checked restart. Each installer is then
@@ -532,45 +537,27 @@ line, collected here so it is findable.
   work with non-legacy parsers. Use eval.` — `hyprctl eval 'hl.config({...})'`
   replaces it. Note eval applies the value without re-selecting a layout, so a
   layout change needs `hyprctl reload` to take effect.
-- **A bar with no background is `bar.transparent`, not a broken patch.** The bar
-  paints `Color.bar.background` unless `bar.transparent` is true in `shell.json`,
-  and that flag is easy to set by accident: `omarchy bar transparent toggle`, or a
-  double-left-click on empty centre-bar space. It looks exactly like the
-  width-capping patch having gone wrong, so check the flag first —
-  `omarchy bar transparent false` puts it back. `omarchy/shell-bar.json` pins
-  it to `false`, so `install-omarchy-shell.sh` undoes a stray toggle. The
-  double-click gesture still works between runs, but a bar made transparent on
-  purpose goes opaque again on the next install.
+- **A bar with no background is `bar.background`, not a broken patch.** The bar
+  paints its background unless `bar.background` is `none` (or `glassy`, which
+  shows what is behind it), and that is easy to set by accident with
+  `omarchy bar background cycle`. It looks exactly like the width-capping patch
+  having gone wrong, so check it first: `omarchy bar background opaque` puts it
+  back. `omarchy/shell-bar.json` pins it to `opaque`, so `install-omarchy-shell.sh`
+  undoes a stray change, and a bar made clear on purpose goes opaque again on the
+  next install. Before 4.5 the key was `bar.transparent`; 4.5 reads `background`
+  first and `omarchy bar background` deletes `transparent`, so a pin on the old
+  key no longer holds, and the merge drops it.
 - **Narrowing the bar *window* silently misplaces every panel.** Insetting the
   bar's left/right layer-shell margins to centre a narrower bar looks perfect
   until a panel is opened: `shell/Ui/PopupCard.qml` anchors popups to the bar
   window and maps the widget's position into that window's coordinate space, so
   each panel lands exactly `inset` px to the left of its own icon. Measured with
   a 1280px inset: the bluetooth icon's underline at x=3712, its panel centred at
-  x=2432. `centerOnBar` widgets (clock, weather) hide the bug, because centring
-  on a bar that is itself centred looks right either way — so test with
-  bluetooth, network, or agents, never the clock. `PopupCard.qml` sits outside
+  x=2432. Panels that centre themselves on the bar (`centerOnBar`) hide the
+  bug, because centring on a bar that is itself centred looks right either way,
+  so test with bluetooth, network or agents. `PopupCard.qml` sits outside
   the bar plugin and so cannot be patched from the clone, which is why the width
-  cap narrows the content and leaves the window alone.
-- **A cloned bar cannot load on stock Omarchy 4.0.0.** `omarchy plugin clone
-  omarchy.bar` reports success and switches `bar.id`, then the bar disappears
-  from every monitor with nothing printed. `Bar.qml` declares `omarchyPath`,
-  `barWidgetRegistry`, and `barConfig` as `required property`, and QML will not
-  instantiate a component whose required properties are unset — but
-  `shell.qml`'s `pluginBarLoader` sets `source:` and only injects them afterwards
-  in `onLoaded`, so the component is never built and `configureBar()`'s
-  `if (!target) return` makes it a no-op. `Bar.qml` is the only entry point doing
-  this; `menu/Menu.qml` and `notifications/Service.qml` declare the same
-  properties plain with defaults. `install-omarchy-bar.sh` relaxes them in the
-  clone, which is what makes the bar work here. Reported and fixed upstream
-  ([#7253](https://github.com/basecamp/omarchy/issues/7253),
-  [#7254](https://github.com/basecamp/omarchy/pull/7254)), but the accepted fix
-  supplies the properties at creation in `shell.qml` and leaves `required` in
-  `Bar.qml`. So it is a **local workaround to delete by hand** once that lands —
-  it will not lapse into a no-op, it will keep firing silently and pointlessly.
-  Check whether it can go with
-  `grep -A6 "id: pluginBarLoader" /usr/share/omarchy/shell/shell.qml`: a
-  `setSource()` with a properties map means the fix is in.
+  cap narrows the strip and leaves the window alone.
 - **A broken bar plugin fails silently, and takes the fallback with it.**
   `shell.qml`'s `Loader.Error` handler reads `errorString`, which `Loader` does
   not have. The `ReferenceError` aborts the handler before
@@ -606,8 +593,10 @@ line, collected here so it is findable.
   numbers, which makes it look like the edit did not save. `shell.json` does
   hot-reload, but a changed bar layout comes back half-initialised: the active
   window title and the indicator toggles vanish and the journal only shows
-  `Indicators.qml: Cannot read property 'bar' of null`. `install-omarchy-shell.sh`
-  restarts the shell whenever it writes the layout.
+  `Indicators.qml: Cannot read property 'bar' of null`. Adding or removing a
+  plugin (`omarchy plugin remove`, `add`, `clone`) reloads the bar the same way,
+  with the same result, so follow any of them with `omarchy restart shell`.
+  `install-omarchy-shell.sh` restarts the shell whenever it writes the layout.
 - **A Quickshell widget is "enabled" by being in the bar layout.** There is no
   separate on/off list: `omarchy plugin enable omarchy.media` just inserts
   `{"id": "omarchy.media"}` into `bar.layout` in `shell.json`, and

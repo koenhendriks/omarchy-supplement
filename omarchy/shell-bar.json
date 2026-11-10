@@ -1,7 +1,6 @@
 {
-  "centerAnchor": "omarchy.active-window",
   "maxWidth": 2560,
-  "transparent": false,
+  "background": "opaque",
   "layout": {
     "left": [
       {
@@ -17,13 +16,17 @@
         "id": "omarchy.media"
       }
     ],
-    "center": [
+    "centerBegin": [
       {
         "id": "omarchy.indicators"
-      },
+      }
+    ],
+    "center": [
       {
         "id": "omarchy.active-window"
-      },
+      }
+    ],
+    "centerEnd": [
       {
         "id": "omarchy.weather"
       },
@@ -82,11 +85,10 @@
         "id": "omarchy.elsewhen"
       },
       {
-        "id": "@user@.clock",
+        "id": "omarchy.clock",
         "format": "ddd d MMM HH:mm",
         "formatAlt": "d MMMM 'W'ww yyyy",
-        "verticalFormat": "HH\n—\nmm",
-        "centerOnBar": false
+        "verticalFormat": "HH\n—\nmm"
       }
     ]
   }

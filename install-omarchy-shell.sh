@@ -66,8 +66,8 @@ import sys
 
 fragment_path, config_path, default_path, out_path = sys.argv[1:5]
 
-# Widget ids for cloned plugins are per-user (<user>.clock), so the fragment
-# spells them "@user@.clock" and the placeholder is filled in here. That keeps the
+# Widget ids for cloned plugins are per-user (<user>.workspaces), so the fragment
+# spells them "@user@.workspaces" and the placeholder is filled in here. That keeps the
 # checked-in layout free of one particular username.
 user = os.environ.get("USER") or getpass.getuser()
 
@@ -102,6 +102,12 @@ for section in (fragment.get("layout") or {}).values():
             section[index] = {**live[entry["id"]], **entry}
 
 config["bar"].update(fragment)
+
+# Keys Omarchy 4.5 stopped reading. `transparent` is worse than dead: the bar
+# reads `background` first, so a stale `transparent` beside it is ignored, and
+# `omarchy bar background` deletes it for the same reason.
+for retired in ("centerAnchor", "transparent"):
+    config["bar"].pop(retired, None)
 
 with open(out_path, "w") as handle:
     json.dump(config, handle, indent=2, ensure_ascii=False, sort_keys=True)
